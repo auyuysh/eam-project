@@ -1,0 +1,47 @@
+Project: Enterprise Asset Management (EAM) System — Device Enrollment & Live Status Monitoring (Demo/Prototype)
+What this project is
+This is a simplified prototype of an enterprise asset management system, the kind of tool IT departments at hospitals, universities, and large companies use to track company-owned laptops. In real organizations, it's often hard to know things like: which laptop belongs to which employee, whether that laptop is currently active, when it was last used, and whether a laptop showing up on the network is one already known to IT or a brand-new device that needs to be added to inventory. This project automates that tracking instead of relying on spreadsheets or manual checks.
+The two core pieces
+
+An agent — a small script that runs on a laptop, automatically collects identifying hardware information (BIOS UUID, serial number, hostname, OS version, MAC address), and sends that information to a central server. The employee doesn't type anything in; it's collected automatically.
+A server/dashboard — a central web application that receives this information, decides whether the device is already known or new, stores device records, and (eventually) lets a manager see device status (online/offline, last seen) and approve newly detected devices by adding business details like assigned employee, department, and asset name.
+
+Why this matters (the real-world problem it mirrors)
+Without a system like this, organizations don't reliably know what hardware they own, who has it, or whether it's still in use — which causes lost assets, duplicate purchases, and security blind spots (e.g., an old laptop that's still active on the network but nobody remembers who has it). This prototype demonstrates the core mechanism real enterprise tools (like Microsoft Intune or SCCM) use to solve that: lightweight background reporting plus centralized inventory logic.
+Scope of this version (important constraint)
+This is explicitly a demo/prototype, not a production system. It's being built under real time pressure, so the goal is to convincingly demonstrate the core workflow end-to-end on 1–2 machines — not to handle every real-world edge case (different Windows versions, security hardening, code signing, multi-device fleet deployment at scale, etc.). Those limitations are acknowledged upfront, and the plan is to be able to explain how the design would extend to handle them, without actually building that part now.
+What's been built so far
+
+A Python script (using the wmi library) that runs on a Windows laptop and reads hardware identity info: BIOS serial number, device UUID, hostname, OS version, and MAC address.
+A Flask server with one endpoint (/heartbeat) that receives this data via an HTTP POST request and currently just prints it to confirm the pipeline works.
+The agent script was updated to send its collected data to the Flask server using the requests library, instead of just printing it locally — completing the basic "agent talks to server" pipeline.
+
+What's still to be built (in order)
+
+Database storage — replace the simple print statement on the server with actual storage (using SQLite, a lightweight built-in database), so heartbeat data persists.
+New vs. existing device logic — when a heartbeat arrives, the server should check whether that device's UUID already exists in the database. If yes, update its "last seen" timestamp. If no, add it to a "pending approval" list instead of the main device table.
+A basic dashboard (web pages) — one page listing all approved devices with their status and last-seen time, and another page showing pending (new/unrecognized) devices, where a manager can fill in business details (assigned employee, department, asset name, etc.) and approve the device into the main inventory.
+Online/Offline status logic — mark a device "offline" if no heartbeat has been received within a short time window (e.g., 2 minutes, for demo purposes), and "online" otherwise.
+(Optional polish) Automating the agent to run on a schedule (via Windows Task Scheduler) instead of being run manually, so the live demo can show real-time status changes (e.g., device goes offline when the laptop is closed, comes back online when reopened).
+
+Explicitly out of scope for this version
+Windows Service implementation (using Task Scheduler instead), code signing, multi-OS support, handling unstable/randomized MAC addresses, authentication/security hardening, offline data queuing, and deployment tooling (Intune/SCCM/GPO). These are acknowledged as necessary for a real production version but are deliberately excluded here to keep the prototype achievable within a tight timeline.
+
+
+import wmi
+import socket
+import platform
+
+c = wmi.WMI()
+
+bios = c.Win32_BIOS()[0]
+product = c.Win32_ComputerSystemProduct()[0]
+
+print("BIOS Serial Number:", bios.SerialNumber)
+print("Device UUID:", product.UUID)
+print("Hostname:", socket.gethostname())
+print("OS Version:", platform.platform())
+
+for nic in c.Win32_NetworkAdapterConfiguration(IPEnabled=True):
+    print("MAC Address:", nic.MACAddress)
+    break

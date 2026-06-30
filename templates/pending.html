@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pending Devices</title>
+</head>
+<body>
+    <h1>Pending Devices (Awaiting Approval)</h1>
+    <table border="1" cellpadding="8">
+        <tr>
+            <th>UUID</th>
+            <th>Serial Number</th>
+            <th>Hostname</th>
+            <th>OS Version</th>
+            <th>MAC Address</th>
+            <th>Detected At</th>
+            <th>Assign Employee</th>
+            <th>Department</th>
+            <th>Action</th>
+        </tr>
+        {% for device in pending_devices %}
+        <tr>
+            <td>{{ device[0] }}</td>
+            <td>{{ device[1] }}</td>
+            <td>{{ device[2] }}</td>
+            <td>{{ device[3] }}</td>
+            <td>{{ device[4] }}</td>
+            <td>{{ device[5] }}</td>
+            <form method="POST" action="/approve">
+                <input type="hidden" name="uuid" value="{{ device[0] }}">
+                <td><input type="text" name="employee" placeholder="Employee name"></td>
+                <td><input type="text" name="department" placeholder="Department"></td>
+                <td><button type="submit">Approve</button></td>
+            </form>
+        </tr>
+        {% endfor %}
+    </table>
+    <br>
+    <a href="/devices">View Approved Devices</a>
+</body>
+</html>

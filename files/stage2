@@ -1,0 +1,9 @@
+Goal: Make the device-monitoring agent install itself silently with one click, and demo it through a real login + download flow
+
+Add self-scheduling to the agent script — modify getinfo.py so that every time it runs, it sends a heartbeat immediately and registers itself in Windows Task Scheduler using a combined trigger: "at system startup" (runs under the SYSTEM account, independent of login state) plus a recurring "every 5 minutes" trigger (so it self-corrects if interrupted). This gets close to real Windows Service reliability without needing a full service implementation.
+Convert the updated script into a standalone .exe — use PyInstaller (pyinstaller --onefile getinfo.py) so it runs on any Windows machine without needing Python installed.
+Build a simple website with a login page — a basic page with one hardcoded username/password for the demo (not full multi-user authentication), just enough to demonstrate "log in first" as a concept.
+Add a "Download Agent" button/page — after login, a page that serves up the .exe file for download.
+Test the full flow on a clean/demo machine — log into the website, click download, run the .exe once, and confirm: the device immediately appears on the dashboard (first heartbeat), the scheduled task is visible in Task Scheduler, and it keeps sending heartbeats automatically afterward without running it again manually.
+(Already partly done) Finish online/offline status logic — so the dashboard accurately reflects when a registered device stops sending heartbeats, which is what makes the "close the laptop / it goes offline" demo moment work.
+For the actual interview demo — remove your own machine's existing entry from the database beforehand, then live-demo the real flow: log in on the website, download, run once, and show it appear on the manager dashboard in real time, including the online/offline transition.
