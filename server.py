@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session
 import sqlite3
 from datetime import datetime
+from flask import send_file
+import os
 
 app = Flask(__name__)
 app.secret_key = "eam_demo_secret_key_2024"
@@ -58,7 +60,7 @@ def login():
         password = request.form.get("password")
         if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
             session["logged_in"] = True
-            return redirect(url_for("devices"))
+            return redirect(url_for("download"))
         else:
             return render_template("login.html", error="Invalid username or password.")
     return render_template("login.html", error=None)
@@ -67,7 +69,18 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for("login"))
+@app.route("/download")
+def download():
+    if not is_logged_in():
+        return redirect(url_for("login"))
+    return render_template("download.html")
 
+@app.route("/download-agent")
+def download_agent():
+    if not is_logged_in():
+        return redirect(url_for("login"))
+    exe_path = os.path.join(os.path.dirname(__file__), "static", "agent", "getinfo.exe")
+    return send_file(exe_path, as_attachment=True, download_name="EAM_Agent.exe")
 # ─── PROTECTED ROUTES ───────────────────────────────────────
 
 @app.route("/devices")
