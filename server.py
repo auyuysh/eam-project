@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session
 import sqlite3
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from flask import send_file
 import os
 
@@ -25,6 +26,7 @@ def init_db():
             mac_address TEXT,
             employee TEXT,
             department TEXT,
+            battery_percentage INTEGER,
             status TEXT,
             last_seen TEXT
         )
@@ -82,17 +84,32 @@ def download_agent():
     exe_path = os.path.join(os.path.dirname(__file__), "static", "agent", "getinfo.exe")
     return send_file(exe_path, as_attachment=True, download_name="EAM_Agent.exe")
 # ─── PROTECTED ROUTES ───────────────────────────────────────
-
 @app.route("/devices")
 def devices():
     if not is_logged_in():
         return redirect(url_for("login"))
+
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM devices")
     all_devices = cursor.fetchall()
+
+    formatted_devices = []
+
+    for device in all_devices:
+        device = list(device)
+
+        # Format the Last Seen timestamp (index 9)
+        if device[9]:
+            dt = datetime.fromisoformat(device[9])
+            device[9] = dt.strftime("%d %b %Y, %I:%M:%S %p IST")
+
+        formatted_devices.append(device)
+
     conn.close()
-    return render_template("devices.html", devices=all_devices)
+    print("Formatted devices:")
+    print(formatted_devices)
+    return render_template("devices.html", devices=formatted_devices)
 
 @app.route("/pending")
 def pending():
@@ -106,26 +123,58 @@ def pending():
     return render_template("pending.html", pending_devices=pending_devices)
 
 @app.route("/approve", methods=["POST"])
+
 def approve():
     if not is_logged_in():
         return redirect(url_for("login"))
+
     uuid = request.form.get("uuid")
     employee = request.form.get("employee")
     department = request.form.get("department")
-    now = datetime.now().isoformat()
+    now = datetime.now(ZoneInfo("Asia/Kolkata")).isoformat()
 
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM pending_devices WHERE uuid = ?", (uuid,))
+
+    cursor.execute(
+        "SELECT * FROM pending_devices WHERE uuid = ?",
+        (uuid,)
+    )
     pending_device = cursor.fetchone()
 
     if pending_device:
         cursor.execute("""
-            INSERT INTO devices (uuid, serial_number, hostname, os_version, mac_address, employee, department, status, last_seen)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (pending_device[0], pending_device[1], pending_device[2], pending_device[3],
-              pending_device[4], employee, department, "online", now))
-        cursor.execute("DELETE FROM pending_devices WHERE uuid = ?", (uuid,))
+            INSERT INTO devices (
+                uuid,
+                serial_number,
+                hostname,
+                os_version,
+                mac_address,
+                employee,
+                department,
+                battery_percentage,
+                status,
+                last_seen
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            pending_device[0],
+            pending_device[1],
+            pending_device[2],
+            pending_device[3],
+            pending_device[4],
+            employee,
+            department,
+            None,
+            "online",
+            now
+        ))
+
+        cursor.execute(
+            "DELETE FROM pending_devices WHERE uuid = ?",
+            (uuid,)
+        )
+
         conn.commit()
         print(f"Approved device: {uuid}")
 
@@ -137,40 +186,93 @@ def approve():
 @app.route("/heartbeat", methods=["POST"])
 def heartbeat():
     data = request.get_json()
+    print("Received payload:", data)
     uuid = data.get("uuid")
-    now = datetime.now().isoformat()
+    now = datetime.now(ZoneInfo("Asia/Kolkata")).isoformat()
 
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
-    cursor.execute("SELECT uuid FROM devices WHERE uuid = ?", (uuid,))
+    cursor.execute(
+        "SELECT uuid FROM devices WHERE uuid = ?",
+        (uuid,)
+    )
+
     existing = cursor.fetchone()
 
     if existing:
+
         cursor.execute("""
             UPDATE devices
-            SET serial_number = ?, hostname = ?, os_version = ?, mac_address = ?, status = ?, last_seen = ?
+            SET
+                serial_number = ?,
+                hostname = ?,
+                os_version = ?,
+                mac_address = ?,
+                battery_percentage = ?,
+                status = ?,
+                last_seen = ?
             WHERE uuid = ?
-        """, (data.get("serial_number"), data.get("hostname"), data.get("os_version"),
-              data.get("mac_address"), "online", now, uuid))
+        """, (
+            data.get("serial_number"),
+            data.get("hostname"),
+            data.get("os_version"),
+            data.get("mac_address"),
+            data.get("battery_percentage"),
+            "online",
+            now,
+            uuid
+        ))
+
         conn.commit()
         conn.close()
+
         print(f"Updated existing device: {uuid}")
-        return jsonify({"status": "updated", "device_status": "existing"}), 200
+
+        return jsonify({
+            "status": "updated",
+            "device_status": "existing"
+        }), 200
+
     else:
-        cursor.execute("SELECT uuid FROM pending_devices WHERE uuid = ?", (uuid,))
+
+        cursor.execute(
+            "SELECT uuid FROM pending_devices WHERE uuid = ?",
+            (uuid,)
+        )
+
         pending = cursor.fetchone()
+
         if not pending:
+
             cursor.execute("""
-                INSERT INTO pending_devices (uuid, serial_number, hostname, os_version, mac_address, detected_at)
+                INSERT INTO pending_devices (
+                    uuid,
+                    serial_number,
+                    hostname,
+                    os_version,
+                    mac_address,
+                    detected_at
+                )
                 VALUES (?, ?, ?, ?, ?, ?)
-            """, (uuid, data.get("serial_number"), data.get("hostname"),
-                  data.get("os_version"), data.get("mac_address"), now))
+            """, (
+                uuid,
+                data.get("serial_number"),
+                data.get("hostname"),
+                data.get("os_version"),
+                data.get("mac_address"),
+                now
+            ))
+
             conn.commit()
             print(f"New device detected, added to pending: {uuid}")
-        conn.close()
-        return jsonify({"status": "pending_approval", "device_status": "new"}), 200
 
+        conn.close()
+
+        return jsonify({
+            "status": "pending_approval",
+            "device_status": "new"
+        }), 200
 if __name__ == "__main__":
     init_db()
     app.run(host="0.0.0.0", port=5000, debug=True)

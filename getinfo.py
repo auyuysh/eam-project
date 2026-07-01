@@ -6,6 +6,7 @@ import subprocess
 import sys
 import os
 
+
 def register_scheduled_tasks():
     exe_path = sys.executable
 
@@ -16,14 +17,30 @@ def register_scheduled_tasks():
     )
     if result.returncode != 0:
         try:
-            subprocess.run([
-                "schtasks", "/Create",
-                "/SC", "ONSTART",
-                "/RU", "SYSTEM",
-                "/TN", "EAM_Agent_Startup",
-                "/TR", exe_path,
-                "/F"
-            ], check=True, capture_output=True, text=True)
+            ps_command = f'''
+$action = New-ScheduledTaskAction -Execute "{exe_path}"
+$trigger = New-ScheduledTaskTrigger -AtStartup
+$settings = New-ScheduledTaskSettingsSet `
+    -AllowStartIfOnBatteries `
+    -DontStopIfGoingOnBatteries `
+    -ExecutionTimeLimit ([TimeSpan]::Zero) `
+    -MultipleInstances IgnoreNew
+$principal = New-ScheduledTaskPrincipal `
+    -UserId "SYSTEM" `
+    -LogonType ServiceAccount `
+    -RunLevel Highest
+Register-ScheduledTask `
+    -TaskName "EAM_Agent_Startup" `
+    -Action $action `
+    -Trigger $trigger `
+    -Settings $settings `
+    -Principal $principal `
+    -Force
+'''
+            subprocess.run(
+                ["powershell", "-Command", ps_command],
+                check=True, capture_output=True, text=True
+            )
             print("Startup task registered successfully.")
         except subprocess.CalledProcessError as e:
             print("Failed to register startup task:", e.stderr)
@@ -37,15 +54,33 @@ def register_scheduled_tasks():
     )
     if result.returncode != 0:
         try:
-            subprocess.run([
-                "schtasks", "/Create",
-                "/SC", "MINUTE",
-                "/MO", "2",
-                "/RU", "SYSTEM",
-                "/TN", "EAM_Agent_Recurring",
-                "/TR", exe_path,
-                "/F"
-            ], check=True, capture_output=True, text=True)
+            ps_command = f'''
+$action = New-ScheduledTaskAction -Execute "{exe_path}"
+$trigger = New-ScheduledTaskTrigger `
+    -RepetitionInterval (New-TimeSpan -Minutes 2) `
+    -Once `
+    -At (Get-Date)
+$settings = New-ScheduledTaskSettingsSet `
+    -AllowStartIfOnBatteries `
+    -DontStopIfGoingOnBatteries `
+    -ExecutionTimeLimit ([TimeSpan]::Zero) `
+    -MultipleInstances IgnoreNew
+$principal = New-ScheduledTaskPrincipal `
+    -UserId "SYSTEM" `
+    -LogonType ServiceAccount `
+    -RunLevel Highest
+Register-ScheduledTask `
+    -TaskName "EAM_Agent_Recurring" `
+    -Action $action `
+    -Trigger $trigger `
+    -Settings $settings `
+    -Principal $principal `
+    -Force
+'''
+            subprocess.run(
+                ["powershell", "-Command", ps_command],
+                check=True, capture_output=True, text=True
+            )
             print("Recurring task registered successfully.")
         except subprocess.CalledProcessError as e:
             print("Failed to register recurring task:", e.stderr)
@@ -60,10 +95,20 @@ def send_heartbeat():
         bios = c.Win32_BIOS()[0]
         product = c.Win32_ComputerSystemProduct()[0]
 
+        # Get MAC address
         mac_address = None
         for nic in c.Win32_NetworkAdapterConfiguration(IPEnabled=True):
             mac_address = nic.MACAddress
             break
+
+        # Get battery percentage
+        battery_percentage = None
+        try:
+            battery = c.Win32_Battery()
+            if battery:
+                battery_percentage = battery[0].EstimatedChargeRemaining
+        except Exception:
+            battery_percentage = None
 
         # Get WiFi SSID
         ssid = None
@@ -89,7 +134,8 @@ def send_heartbeat():
             "os_version": platform.platform(),
             "mac_address": mac_address,
             "ssid": ssid,
-            "logged_in_user": logged_in_user
+            "logged_in_user": logged_in_user,
+            "battery_percentage": battery_percentage
         }
 
         print("Sending payload:", payload)

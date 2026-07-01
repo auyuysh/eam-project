@@ -1,0 +1,449 @@
+I am building an Enterprise Asset Management (EAM) / Endpoint Monitoring System for Windows. The goal is to simulate how enterprise tools like Microsoft Intune, ManageEngine Endpoint Central, Lansweeper, or PDQ Inventory automatically register and monitor company devices.
+
+==========================
+PROJECT ARCHITECTURE
+==========================
+
+The project consists of two parts:
+
+1. Flask Server (Manager Dashboard)
+2. Windows Agent (Client)
+
+-----------------------------------
+SERVER
+-----------------------------------
+
+Backend:
+- Flask
+- SQLite
+- Jinja Templates
+
+Database contains:
+
+devices
+---------
+uuid
+serial_number
+hostname
+os_version
+mac_address
+employee
+department
+battery_percentage
+status
+last_seen
+
+pending_devices
+----------------
+uuid
+serial_number
+hostname
+os_version
+mac_address
+detected_at
+
+Workflow:
+
+1. Unknown device sends heartbeat.
+2. If UUID is unknown:
+      -> Store inside pending_devices.
+3. Manager approves device.
+4. Device moves into devices table.
+5. Every future heartbeat updates:
+
+- battery percentage
+- hostname
+- OS
+- MAC
+- last_seen
+- status
+
+Dashboard displays:
+
+- Approved Devices
+- Pending Devices
+- Battery %
+- Last Seen
+- Status
+
+Battery percentage updates correctly whenever a heartbeat is received.
+
+==========================
+AGENT
+==========================
+
+The Windows agent is written in Python.
+
+It collects:
+
+- UUID
+- BIOS Serial Number
+- Hostname
+- OS Version
+- MAC Address
+- Logged in Username
+- WiFi SSID
+- Battery Percentage
+
+using:
+
+- WMI
+- socket
+- platform
+- subprocess
+- requests
+
+Heartbeat payload:
+
+{
+    serial_number,
+    uuid,
+    hostname,
+    os_version,
+    mac_address,
+    ssid,
+    logged_in_user,
+    battery_percentage
+}
+
+The payload is sent to
+
+POST /heartbeat
+
+The heartbeat endpoint successfully updates SQLite.
+
+Running:
+
+python getinfo.py
+
+works perfectly.
+
+Battery updates.
+
+last_seen updates.
+
+Dashboard updates after refresh.
+
+==========================
+EXECUTABLE
+==========================
+
+The agent is converted into
+
+EAM_Agent.exe
+
+using
+
+pyinstaller --onefile --noconsole getinfo.py
+
+The executable is downloaded from the Flask website after login.
+
+Login ->
+Download Agent ->
+Run Agent
+
+This flow already works.
+
+==========================
+AUTOMATIC EXECUTION GOAL
+==========================
+
+The objective is:
+
+Employee downloads the agent only once.
+
+After that:
+
+Whenever Windows starts (even before login / on lock screen),
+
+Windows Task Scheduler should automatically execute the agent.
+
+No employee interaction should ever be required again.
+
+Additionally,
+
+the agent should continue sending heartbeats every 2 minutes.
+
+Current implementation uses TWO scheduled tasks.
+
+Task 1:
+
+ONSTART
+
+schtasks /Create
+
+SC ONSTART
+
+RU SYSTEM
+
+Task name:
+
+EAM_Agent_Startup
+
+Purpose:
+
+Run automatically whenever Windows boots.
+
+Task 2:
+
+Recurring
+
+schtasks /Create
+
+SC MINUTE
+
+MO 2
+
+RU SYSTEM
+
+Task name:
+
+EAM_Agent_Recurring
+
+Purpose:
+
+Launch the agent every 2 minutes.
+
+Current scheduling code:
+
+def register_scheduled_tasks():
+
+    exe_path = sys.executable
+
+    Create ONSTART task
+
+    Create recurring every 2 minutes task
+
+The tasks are only created if they don't already exist.
+
+==========================
+EXPECTED BEHAVIOR
+==========================
+
+Expected:
+
+Boot PC
+
+↓
+
+ONSTART task runs
+
+↓
+
+Agent sends first heartbeat
+
+↓
+
+Every 2 minutes
+
+Recurring task launches agent again
+
+↓
+
+Heartbeat
+
+↓
+
+Database updates
+
+↓
+
+Dashboard refresh shows latest battery and last_seen
+
+==========================
+CURRENT PROBLEM
+==========================
+
+Manual execution:
+
+python getinfo.py
+
+works perfectly.
+
+Running the EXE manually also works.
+
+If I manually execute
+
+schtasks /Run /TN EAM_Agent_Recurring
+
+the heartbeat reaches Flask.
+
+Flask prints:
+
+Updated existing device:
+POST /heartbeat 200
+
+Battery updates.
+
+Everything works.
+
+However,
+
+automatic recurring execution DOES NOT happen.
+
+The Flask terminal does NOT receive heartbeats every 2 minutes.
+
+No
+
+POST /heartbeat
+
+appears.
+
+last_seen remains frozen.
+
+Battery does not continue updating automatically.
+
+==========================
+TASK SCHEDULER DETAILS
+==========================
+
+Query:
+
+schtasks /Query /TN EAM_Agent_Recurring /V /FO LIST
+
+Output:
+
+Run As User:
+SYSTEM
+
+Task To Run:
+
+C:\Users\hp\Downloads\EAM_Agent (1).exe
+
+Status:
+Queued
+
+Last Result:
+0
+
+Last Run Time:
+13:51:20
+
+Next Run Time:
+updates correctly
+
+The important observation:
+
+Last Run Time never advances automatically.
+
+It only changes if I manually force execution.
+
+==========================
+IMPORTANT OBSERVATIONS
+==========================
+
+Manual:
+
+python getinfo.py
+
+↓
+
+Heartbeat works.
+
+Manual:
+
+Run EXE
+
+↓
+
+Heartbeat works.
+
+Manual:
+
+schtasks /Run
+
+↓
+
+Heartbeat works.
+
+Automatic recurring trigger
+
+↓
+
+No heartbeat.
+
+Flask receives nothing.
+
+==========================
+QUESTIONS
+==========================
+
+1.
+
+Is the recurring scheduled task being created incorrectly?
+
+2.
+
+Is there a Windows Task Scheduler configuration issue?
+
+3.
+
+Does running the executable from
+
+C:\Users\hp\Downloads
+
+under
+
+SYSTEM
+
+cause permission problems?
+
+4.
+
+Would moving the executable to
+
+C:\ProgramData\EAM
+
+or
+
+C:\EAM
+
+solve it?
+
+5.
+
+Is there something wrong with creating a recurring task using:
+
+schtasks
+
+SC MINUTE
+
+MO 2
+
+RU SYSTEM
+
+6.
+
+Should I continue with this architecture?
+
+Architecture A:
+
+ONSTART task
+
++
+
+Recurring task every 2 minutes
+
+OR
+
+Architecture B:
+
+Single ONSTART task
+
+↓
+
+Agent stays alive forever
+
+while True:
+
+send_heartbeat()
+
+sleep(120)
+
+I intentionally chose Architecture A because I wanted Windows Task Scheduler itself to trigger execution every time without relying on a continuously running process.
+
+The main project objective is:
+
+"The employee installs the agent once. Afterwards, Windows automatically executes it whenever the machine boots and continues sending heartbeats without any manual intervention."
+
+Please analyze the entire architecture and explain WHY the recurring task is not automatically executing even though manual execution through schtasks /Run works perfectly. Also suggest the best architecture for an enterprise-style endpoint monitoring system while preserving the objective of automatic execution after every system startup.

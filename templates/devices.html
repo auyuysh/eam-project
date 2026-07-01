@@ -4,30 +4,52 @@
     <title>All Devices</title>
 </head>
 <body>
-    <a href="/download">Download Agent</a> | 
-    <a href="/logout">Logout</a>
+
     <h1>Approved Devices</h1>
+
     <table border="1" cellpadding="8">
+
         <tr>
             <th>UUID</th>
             <th>Hostname</th>
             <th>Employee</th>
             <th>Department</th>
+            <th>Battery</th>
             <th>Status</th>
             <th>Last Seen</th>
         </tr>
+
         {% for device in devices %}
         <tr>
+
             <td>{{ device[0] }}</td>
+
             <td>{{ device[2] }}</td>
+
             <td>{{ device[5] }}</td>
+
             <td>{{ device[6] }}</td>
-            <td>{{ device[7] }}</td>
+
+            <td>
+                {% if device[7] is not none %}
+                    {{ device[7] }}%
+                {% else %}
+                    N/A
+                {% endif %}
+            </td>
+
             <td>{{ device[8] }}</td>
+
+            <td>{{ device[9] }}</td>
+
         </tr>
         {% endfor %}
+
     </table>
+
     <br>
+
     <a href="/pending">View Pending Devices</a>
+
 </body>
 </html>
