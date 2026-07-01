@@ -1,9 +1,15 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, redirect, url_for, session
 import sqlite3
 from datetime import datetime
 
 app = Flask(__name__)
+app.secret_key = "eam_demo_secret_key_2024"
+
 DB_NAME = "devices.db"
+
+# Hardcoded credentials for demo
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "admin123"
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -33,6 +39,87 @@ def init_db():
     """)
     conn.commit()
     conn.close()
+
+def is_logged_in():
+    return session.get("logged_in") == True
+
+# ─── AUTH ROUTES ────────────────────────────────────────────
+
+@app.route("/")
+def index():
+    if is_logged_in():
+        return redirect(url_for("devices"))
+    return redirect(url_for("login"))
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+            session["logged_in"] = True
+            return redirect(url_for("devices"))
+        else:
+            return render_template("login.html", error="Invalid username or password.")
+    return render_template("login.html", error=None)
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+# ─── PROTECTED ROUTES ───────────────────────────────────────
+
+@app.route("/devices")
+def devices():
+    if not is_logged_in():
+        return redirect(url_for("login"))
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM devices")
+    all_devices = cursor.fetchall()
+    conn.close()
+    return render_template("devices.html", devices=all_devices)
+
+@app.route("/pending")
+def pending():
+    if not is_logged_in():
+        return redirect(url_for("login"))
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM pending_devices")
+    pending_devices = cursor.fetchall()
+    conn.close()
+    return render_template("pending.html", pending_devices=pending_devices)
+
+@app.route("/approve", methods=["POST"])
+def approve():
+    if not is_logged_in():
+        return redirect(url_for("login"))
+    uuid = request.form.get("uuid")
+    employee = request.form.get("employee")
+    department = request.form.get("department")
+    now = datetime.now().isoformat()
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM pending_devices WHERE uuid = ?", (uuid,))
+    pending_device = cursor.fetchone()
+
+    if pending_device:
+        cursor.execute("""
+            INSERT INTO devices (uuid, serial_number, hostname, os_version, mac_address, employee, department, status, last_seen)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (pending_device[0], pending_device[1], pending_device[2], pending_device[3],
+              pending_device[4], employee, department, "online", now))
+        cursor.execute("DELETE FROM pending_devices WHERE uuid = ?", (uuid,))
+        conn.commit()
+        print(f"Approved device: {uuid}")
+
+    conn.close()
+    return redirect(url_for("devices"))
+
+# ─── HEARTBEAT (no login required — agent calls this) ───────
 
 @app.route("/heartbeat", methods=["POST"])
 def heartbeat():
@@ -70,50 +157,6 @@ def heartbeat():
             print(f"New device detected, added to pending: {uuid}")
         conn.close()
         return jsonify({"status": "pending_approval", "device_status": "new"}), 200
-
-@app.route("/pending")
-def pending():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM pending_devices")
-    pending_devices = cursor.fetchall()
-    conn.close()
-    return render_template("pending.html", pending_devices=pending_devices)
-
-@app.route("/devices")
-def devices():
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM devices")
-    all_devices = cursor.fetchall()
-    conn.close()
-    return render_template("devices.html", devices=all_devices)
-
-@app.route("/approve", methods=["POST"])
-def approve():
-    uuid = request.form.get("uuid")
-    employee = request.form.get("employee")
-    department = request.form.get("department")
-    now = datetime.now().isoformat()
-
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-
-    cursor.execute("SELECT * FROM pending_devices WHERE uuid = ?", (uuid,))
-    pending_device = cursor.fetchone()
-
-    if pending_device:
-        cursor.execute("""
-            INSERT INTO devices (uuid, serial_number, hostname, os_version, mac_address, employee, department, status, last_seen)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (pending_device[0], pending_device[1], pending_device[2], pending_device[3],
-              pending_device[4], employee, department, "online", now))
-        cursor.execute("DELETE FROM pending_devices WHERE uuid = ?", (uuid,))
-        conn.commit()
-        print(f"Approved device: {uuid}")
-
-    conn.close()
-    return devices()
 
 if __name__ == "__main__":
     init_db()
