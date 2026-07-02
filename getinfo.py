@@ -10,7 +10,6 @@ import os
 def register_scheduled_tasks():
     exe_path = sys.executable
 
-    # Check and register startup task only if it doesn't exist
     result = subprocess.run(
         ["schtasks", "/Query", "/TN", "EAM_Agent_Startup"],
         capture_output=True, text=True
@@ -47,7 +46,6 @@ Register-ScheduledTask `
     else:
         print("Startup task already exists, skipping.")
 
-    # Check and register recurring task only if it doesn't exist
     result = subprocess.run(
         ["schtasks", "/Query", "/TN", "EAM_Agent_Recurring"],
         capture_output=True, text=True
@@ -94,14 +92,15 @@ def send_heartbeat():
 
         bios = c.Win32_BIOS()[0]
         product = c.Win32_ComputerSystemProduct()[0]
+        system = c.Win32_ComputerSystem()[0]
 
-        # Get MAC address
+        # MAC address
         mac_address = None
         for nic in c.Win32_NetworkAdapterConfiguration(IPEnabled=True):
             mac_address = nic.MACAddress
             break
 
-        # Get battery percentage
+        # Battery percentage
         battery_percentage = None
         try:
             battery = c.Win32_Battery()
@@ -110,7 +109,7 @@ def send_heartbeat():
         except Exception:
             battery_percentage = None
 
-        # Get WiFi SSID
+        # WiFi SSID
         ssid = None
         try:
             ssid_result = subprocess.run(
@@ -124,7 +123,7 @@ def send_heartbeat():
         except Exception:
             ssid = "Unknown"
 
-        # Get currently logged in username
+        # Logged in username
         logged_in_user = os.environ.get("USERNAME", "Unknown")
 
         payload = {
@@ -133,6 +132,8 @@ def send_heartbeat():
             "hostname": socket.gethostname(),
             "os_version": platform.platform(),
             "mac_address": mac_address,
+            "manufacturer": system.Manufacturer,
+            "model": system.Model,
             "ssid": ssid,
             "logged_in_user": logged_in_user,
             "battery_percentage": battery_percentage

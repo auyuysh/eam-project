@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Device — {{ device[2] }}</title>
+</head>
+<body>
+    <h1>Device Detail — {{ device[2] }}</h1>
+
+    <h2>Hardware Information</h2>
+    <table border="1" cellpadding="8">
+        <tr><td>UUID</td><td>{{ device[0] }}</td></tr>
+        <tr><td>Serial Number</td><td>{{ device[1] }}</td></tr>
+        <tr><td>Hostname</td><td>{{ device[2] }}</td></tr>
+        <tr><td>OS Version</td><td>{{ device[3] }}</td></tr>
+        <tr><td>MAC Address</td><td>{{ device[4] }}</td></tr>
+        <tr><td>Manufacturer</td><td>{{ device[5] if device[5] else 'N/A' }}</td></tr>
+        <tr><td>Model</td><td>{{ device[6] if device[6] else 'N/A' }}</td></tr>
+    </table>
+
+    <h2>Network Information</h2>
+    <table border="1" cellpadding="8">
+        <tr><td>WiFi Network (SSID)</td><td>{{ device[7] if device[7] else 'N/A' }}</td></tr>
+    </table>
+
+    <h2>Business Information</h2>
+    <table border="1" cellpadding="8">
+        <tr><td>Assigned Employee</td><td>{{ device[8] if device[8] else 'Unassigned' }}</td></tr>
+        <tr><td>Department</td><td>{{ device[9] if device[9] else 'N/A' }}</td></tr>
+        <tr><td>Purchase Value</td><td>{% if device[11] %}₹{{ device[11] }}{% else %}N/A{% endif %}</td></tr>
+        <tr><td>Purchase Date</td><td>{{ device[12] if device[12] else 'N/A' }}</td></tr>
+        <tr><td>Warranty</td><td>{{ device[13] if device[13] else 'N/A' }}</td></tr>
+    </table>
+
+    <h2>Status Information</h2>
+    <table border="1" cellpadding="8">
+        <tr><td>Battery</td><td>{% if device[10] is not none %}{{ device[10] }}%{% else %}N/A{% endif %}</td></tr>
+        <tr><td>Status</td><td>{{ device[14] }}</td></tr>
+        <tr><td>Last Seen</td><td>{{ device[15] }}</td></tr>
+    </table>
+
+    <br>
+    <a href="/department/{{ device[9] }}">← Back to {{ device[9] }} Department</a> |
+    <a href="/dashboard">← Back to Dashboard</a>
+</body>
+</html>

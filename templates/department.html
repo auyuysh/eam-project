@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ dept_name }} Department</title>
+</head>
+<body>
+    <h1>{{ dept_name }} Department — Devices</h1>
+
+    {% if devices %}
+    <table border="1" cellpadding="8">
+        <tr>
+            <th>Hostname</th>
+            <th>Employee</th>
+            <th>Battery</th>
+            <th>Status</th>
+            <th>Last Seen</th>
+            <th>Details</th>
+        </tr>
+        {% for device in devices %}
+        <tr>
+            <td>{{ device[1] }}</td>
+            <td>{{ device[2] if device[2] else 'Unassigned' }}</td>
+            <td>
+                {% if device[3] is not none %}
+                    {{ device[3] }}%
+                {% else %}
+                    N/A
+                {% endif %}
+            </td>
+            <td>{{ device[4] }}</td>
+            <td>{{ device[5] }}</td>
+            <td><a href="/device/{{ device[0] }}">View</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+        <p>No devices registered in this department yet.</p>
+    {% endif %}
+
+    <br>
+    <a href="/dashboard">← Back to Dashboard</a>
+</body>
+</html>

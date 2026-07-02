@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>EAM Dashboard</title>
+</head>
+<body>
+    <h1>EAM System — Dashboard</h1>
+
+    {% if pending_count > 0 %}
+        <p style="color: orange;">
+            ⚠️ {{ pending_count }} device(s) awaiting approval.
+            <a href="/pending">Review Now</a>
+        </p>
+    {% endif %}
+
+    <h2>Departments</h2>
+    <table border="1" cellpadding="12">
+        <tr>
+            <th>Department</th>
+            <th>Registered Devices</th>
+            <th>Action</th>
+        </tr>
+        {% for dept in departments %}
+        <tr>
+            <td>{{ dept }}</td>
+            <td>{{ dept_counts[dept] }}</td>
+            <td><a href="/department/{{ dept }}">View Devices</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <br>
+    <a href="/pending">Pending Approvals ({{ pending_count }})</a> |
+    <a href="/download">Download Agent</a> |
+    <a href="/logout">Logout</a>
+</body>
+</html>
