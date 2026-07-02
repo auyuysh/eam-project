@@ -1,3 +1,4 @@
+from werkzeug.security import generate_password_hash, check_password_hash
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session, send_file
 import sqlite3
 from datetime import datetime
@@ -8,15 +9,16 @@ app = Flask(__name__)
 app.secret_key = "eam_demo_secret_key_2024"
 
 DB_NAME = "devices.db"
-ADMIN_USERNAME = "admin"
-ADMIN_PASSWORD = "admin123"
 
-DEPARTMENTS = ["IT", "Medical", "Radiology", "Administration"]
+
+
 
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
+
+    # Devices Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS devices (
             uuid TEXT PRIMARY KEY,
@@ -37,6 +39,8 @@ def init_db():
             last_seen TEXT
         )
     """)
+
+    # Pending Devices Table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS pending_devices (
             uuid TEXT PRIMARY KEY,
@@ -49,6 +53,29 @@ def init_db():
             detected_at TEXT
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS departments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            
+            created_at TEXT NOT NULL
+        )
+    """)
+
+    # Users Table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            first_name TEXT NOT NULL,
+            last_name TEXT NOT NULL,
+            company_name TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -76,18 +103,128 @@ def index():
     return redirect(url_for("login"))
 
 
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
+
     if request.method == "POST":
+
         username = request.form.get("username")
         password = request.form.get("password")
-        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                id,
+                username,
+                password_hash
+            FROM users
+            WHERE username = ?
+        """, (username,))
+
+        user = cursor.fetchone()
+
+        conn.close()
+
+        if user and check_password_hash(user[2], password):
+
             session["logged_in"] = True
-            return redirect(url_for("download"))
-        else:
-            return render_template("login.html", error="Invalid username or password.")
+            session["user_id"] = user[0]
+            session["username"] = user[1]
+
+            return redirect(url_for("dashboard"))
+
+        return render_template(
+            "login.html",
+            error="Invalid username or password."
+        )
+
     return render_template("login.html", error=None)
 
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+
+    if request.method == "POST":
+
+        first_name = request.form.get("first_name")
+        last_name = request.form.get("last_name")
+        company_name = request.form.get("company")
+        email = request.form.get("email")
+        username = request.form.get("username")
+        password = request.form.get("password")
+        confirm_password = request.form.get("confirm_password")
+
+        # Check if passwords match
+        if password != confirm_password:
+            return render_template(
+                "signup.html",
+                error="Passwords do not match."
+            )
+
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+
+        # Check if username already exists
+        cursor.execute(
+            "SELECT id FROM users WHERE username = ?",
+            (username,)
+        )
+
+        if cursor.fetchone():
+            conn.close()
+            return render_template(
+                "signup.html",
+                error="Username already exists."
+            )
+
+        # Check if email already exists
+        cursor.execute(
+            "SELECT id FROM users WHERE email = ?",
+            (email,)
+        )
+
+        if cursor.fetchone():
+            conn.close()
+            return render_template(
+                "signup.html",
+                error="Email already registered."
+            )
+
+        password_hash = generate_password_hash(password)
+
+        created_at = datetime.now(
+            ZoneInfo("Asia/Kolkata")
+        ).isoformat()
+
+        cursor.execute("""
+            INSERT INTO users (
+                first_name,
+                last_name,
+                company_name,
+                email,
+                username,
+                password_hash,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (
+            first_name,
+            last_name,
+            company_name,
+            email,
+            username,
+            password_hash,
+            created_at
+        ))
+
+        conn.commit()
+        conn.close()
+
+        return redirect(url_for("login"))
+
+    return render_template("signup.html", error=None)
 
 @app.route("/logout")
 def logout():
@@ -116,55 +253,111 @@ def download_agent():
 
 @app.route("/dashboard")
 def dashboard():
+
     if not is_logged_in():
         return redirect(url_for("login"))
 
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
-    dept_counts = {}
-    for dept in DEPARTMENTS:
-        cursor.execute(
-            "SELECT COUNT(*) FROM devices WHERE department = ?", (dept,)
-        )
-        dept_counts[dept] = cursor.fetchone()[0]
+    cursor.execute("""
+        SELECT id, name
+        FROM departments
+        ORDER BY name
+    """)
 
-    cursor.execute("SELECT COUNT(*) FROM pending_devices")
-    pending_count = cursor.fetchone()[0]
+    departments = cursor.fetchall()
 
     conn.close()
+
     return render_template(
         "dashboard.html",
-        departments=DEPARTMENTS,
-        dept_counts=dept_counts,
-        pending_count=pending_count
+        departments=departments
+    )
+@app.route("/create-department", methods=["POST"])
+def create_department():
+
+    if not is_logged_in():
+        return redirect(url_for("login"))
+
+    name = request.form.get("name").strip()
+
+    if not name:
+        return redirect(url_for("dashboard"))
+
+    created_at = datetime.now(
+        ZoneInfo("Asia/Kolkata")
+    ).isoformat()
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT id FROM departments WHERE name = ?",
+        (name,)
     )
 
+    if cursor.fetchone():
+        conn.close()
+        return redirect(url_for("dashboard"))
+
+    cursor.execute("""
+        INSERT INTO departments(name, created_at)
+        VALUES(?, ?)
+    """, (
+        name,
+        created_at
+    ))
+
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for("dashboard"))
 
 # ─── DEPARTMENT VIEW ─────────────────────────────────────────
 
 @app.route("/department/<dept_name>")
 def department(dept_name):
+
     if not is_logged_in():
         return redirect(url_for("login"))
 
-    if dept_name not in DEPARTMENTS:
-        return redirect(url_for("dashboard"))
-
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
+
+    # Check if the department exists
     cursor.execute(
-        "SELECT uuid, hostname, employee, battery_percentage, status, last_seen FROM devices WHERE department = ?",
+        "SELECT id FROM departments WHERE name = ?",
         (dept_name,)
     )
+
+    if cursor.fetchone() is None:
+        conn.close()
+        return redirect(url_for("dashboard"))
+
+    # Fetch all devices in the department
+    cursor.execute("""
+        SELECT
+            uuid,
+            hostname,
+            employee,
+            battery_percentage,
+            status,
+            last_seen
+        FROM devices
+        WHERE department = ?
+    """, (dept_name,))
+
     devices = cursor.fetchall()
+
     conn.close()
 
     formatted = []
-    for d in devices:
-        d = list(d)
-        d[5] = format_timestamp(d[5])
-        formatted.append(d)
+
+    for device in devices:
+        device = list(device)
+        device[5] = format_timestamp(device[5])
+        formatted.append(device)
 
     return render_template(
         "department.html",
@@ -199,17 +392,32 @@ def device_detail(uuid):
 
 @app.route("/pending")
 def pending():
+
     if not is_logged_in():
         return redirect(url_for("login"))
+
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
+
+    # Fetch pending devices
     cursor.execute("SELECT * FROM pending_devices")
     pending_devices = cursor.fetchall()
+
+    # Fetch department names from database
+    cursor.execute("""
+        SELECT name
+        FROM departments
+        ORDER BY name
+    """)
+
+    departments = [row[0] for row in cursor.fetchall()]
+
     conn.close()
+
     return render_template(
         "pending.html",
         pending_devices=pending_devices,
-        departments=DEPARTMENTS
+        departments=departments
     )
 
 

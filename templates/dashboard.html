@@ -2,36 +2,78 @@
 <html>
 <head>
     <title>EAM Dashboard</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/dashboard.css') }}"
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
 </head>
 <body>
-    <h1>EAM System — Dashboard</h1>
 
-    {% if pending_count > 0 %}
-        <p style="color: orange;">
-            ⚠️ {{ pending_count }} device(s) awaiting approval.
-            <a href="/pending">Review Now</a>
-        </p>
-    {% endif %}
+    <h1>Enterprise Asset Management System</h1>
+
+    <p>Welcome, {{ session.username }}</p>
+
+    <hr>
 
     <h2>Departments</h2>
-    <table border="1" cellpadding="12">
-        <tr>
-            <th>Department</th>
-            <th>Registered Devices</th>
-            <th>Action</th>
-        </tr>
-        {% for dept in departments %}
-        <tr>
-            <td>{{ dept }}</td>
-            <td>{{ dept_counts[dept] }}</td>
-            <td><a href="/department/{{ dept }}">View Devices</a></td>
-        </tr>
-        {% endfor %}
-    </table>
+
+    <form action="/create-department" method="POST">
+        <input
+            type="text"
+            name="name"
+            placeholder="Department Name"
+            required
+        >
+
+        <button type="submit">
+            Create Department
+        </button>
+    </form>
 
     <br>
-    <a href="/pending">Pending Approvals ({{ pending_count }})</a> |
-    <a href="/download">Download Agent</a> |
+
+    {% if departments %}
+
+        <table border="1" cellpadding="10">
+
+            <tr>
+                <th>Department</th>
+                <th>Action</th>
+            </tr>
+
+            {% for department in departments %}
+
+            <tr>
+
+                <td>{{ department[1] }}</td>
+
+                <td>
+                    <a href="/department/{{ department[1] }}">
+                        View
+                    </a>
+                </td>
+
+            </tr>
+
+            {% endfor %}
+
+        </table>
+
+    {% else %}
+
+        <p>No departments created yet.</p>
+
+    {% endif %}
+
+    <br>
+
     <a href="/logout">Logout</a>
+
 </body>
 </html>
