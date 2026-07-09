@@ -1,5 +1,5 @@
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask import Flask, request, jsonify, render_template, redirect, url_for, session, send_file
+from flask import Flask, request, jsonify, render_template, redirect, url_for, session
 import sqlite3
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -19,39 +19,9 @@ def init_db():
     conn = get_db()
     cursor = conn.cursor()
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS devices (
-            uuid TEXT PRIMARY KEY,
-            serial_number TEXT,
-            hostname TEXT,
-            os_version TEXT,
-            mac_address TEXT,
-            manufacturer TEXT,
-            model TEXT,
-            ssid TEXT,
-            employee TEXT,
-            department TEXT,
-            battery_percentage INTEGER,
-            purchase_value TEXT,
-            purchase_date TEXT,
-            warranty TEXT,
-            status TEXT,
-            last_seen TEXT
-        )
-    """)
+    
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS pending_devices (
-            uuid TEXT PRIMARY KEY,
-            serial_number TEXT,
-            hostname TEXT,
-            os_version TEXT,
-            mac_address TEXT,
-            manufacturer TEXT,
-            model TEXT,
-            detected_at TEXT
-        )
-    """)
+    
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS departments (
@@ -1028,135 +998,9 @@ def delete_asset(asset_id):
     return redirect(url_for("asset_type", asset_type_id=asset_type_id))
 
 
-# ─── PENDING & APPROVAL ──────────────────────────────────────
-
-@app.route("/pending")
-def pending():
-    if not is_logged_in():
-        return redirect(url_for("login"))
-
-    conn = get_db()
-    try:
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM pending_devices")
-        pending_devices = cursor.fetchall()
-        cursor.execute("SELECT name FROM departments ORDER BY name")
-        departments = [row[0] for row in cursor.fetchall()]
-    finally:
-        conn.close()
-
-    return render_template(
-        "pending.html",
-        pending_devices=pending_devices,
-        departments=departments
-    )
 
 
-@app.route("/approve", methods=["POST"])
-def approve():
-    if not is_logged_in():
-        return redirect(url_for("login"))
 
-    uuid = request.form.get("uuid")
-    employee = request.form.get("employee")
-    department = request.form.get("department")
-    purchase_value = request.form.get("purchase_value")
-    purchase_date = request.form.get("purchase_date")
-    warranty = request.form.get("warranty")
-    now = datetime.now(ZoneInfo("Asia/Kolkata")).isoformat()
-
-    conn = get_db()
-    try:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT * FROM pending_devices WHERE uuid = ?", (uuid,)
-        )
-        pending_device = cursor.fetchone()
-
-        if pending_device:
-            cursor.execute("""
-                INSERT INTO devices (
-                    uuid, serial_number, hostname, os_version, mac_address,
-                    manufacturer, model, ssid, employee, department,
-                    battery_percentage, purchase_value, purchase_date,
-                    warranty, status, last_seen
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                pending_device[0], pending_device[1], pending_device[2],
-                pending_device[3], pending_device[4], pending_device[5],
-                pending_device[6], None, employee, department,
-                None, purchase_value, purchase_date, warranty, "online", now
-            ))
-            cursor.execute(
-                "DELETE FROM pending_devices WHERE uuid = ?", (uuid,)
-            )
-            conn.commit()
-            print(f"Approved device: {uuid}")
-    finally:
-        conn.close()
-
-    return redirect(url_for("dashboard"))
-
-
-# ─── HEARTBEAT ───────────────────────────────────────────────
-
-@app.route("/heartbeat", methods=["POST"])
-def heartbeat():
-    data = request.get_json()
-    print("Received payload:", data)
-    uuid = data.get("uuid")
-    now = datetime.now(ZoneInfo("Asia/Kolkata")).isoformat()
-
-    conn = get_db()
-    try:
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT uuid FROM devices WHERE uuid = ?", (uuid,)
-        )
-        existing = cursor.fetchone()
-
-        if existing:
-            cursor.execute("""
-                UPDATE devices SET
-                    serial_number = ?, hostname = ?, os_version = ?,
-                    mac_address = ?, manufacturer = ?, model = ?,
-                    ssid = ?, battery_percentage = ?, status = ?, last_seen = ?
-                WHERE uuid = ?
-            """, (
-                data.get("serial_number"), data.get("hostname"),
-                data.get("os_version"), data.get("mac_address"),
-                data.get("manufacturer"), data.get("model"),
-                data.get("ssid"), data.get("battery_percentage"),
-                "online", now, uuid
-            ))
-            conn.commit()
-            print(f"Updated existing device: {uuid}")
-            return jsonify({
-                "status": "updated", "device_status": "existing"
-            }), 200
-        else:
-            cursor.execute(
-                "SELECT uuid FROM pending_devices WHERE uuid = ?", (uuid,)
-            )
-            pending = cursor.fetchone()
-            if not pending:
-                cursor.execute("""
-                    INSERT INTO pending_devices (
-                        uuid, serial_number, hostname, os_version,
-                        mac_address, manufacturer, model, detected_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    uuid, data.get("serial_number"), data.get("hostname"),
-                    data.get("os_version"), data.get("mac_address"),
-                    data.get("manufacturer"), data.get("model"), now
-                ))
-                conn.commit()
-                print(f"New device detected, added to pending: {uuid}")
-            return jsonify({
-                "status": "pending_approval", "device_status": "new"
-            }), 200
-    finally:
-        conn.close()
 
 
 if __name__ == "__main__":
