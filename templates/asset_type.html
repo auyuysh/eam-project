@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>{{ asset_type[1] }} — EAM</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Poppins', sans-serif; background: #f5f6fa; color: #333; }
+        .navbar { background: #1a1a2e; color: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; }
+        .navbar h2 { font-size: 18px; }
+        .nav-right { display: flex; gap: 16px; align-items: center; font-size: 14px; color: #aaa; }
+        .nav-right a { color: #aaa; text-decoration: none; }
+        .nav-right a:hover { color: white; }
+        .breadcrumb { padding: 12px 32px; font-size: 13px; color: #888; background: white; border-bottom: 1px solid #eee; }
+        .breadcrumb a { color: #5c6bc0; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+        .content { padding: 32px; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .page-header h1 { font-size: 24px; }
+        .header-actions { display: flex; gap: 10px; }
+        .page-subtitle { color: #888; font-size: 14px; margin-bottom: 32px; }
+        .section-title { font-size: 16px; font-weight: 600; color: #333; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; text-decoration: none; display: inline-block; }
+        .btn-primary { background: #5c6bc0; color: white; }
+        .btn-primary:hover { background: #3f51b5; }
+        .btn-danger { background: #e53935; color: white; }
+        .btn-danger:hover { background: #c62828; }
+        .btn-cancel { background: #f0f0f0; color: #555; }
+        .btn-cancel:hover { background: #e0e0e0; }
+        .btn-sm { padding: 6px 14px; font-size: 12px; }
+        .search-bar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+        .search-bar input, .search-bar select { padding: 9px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: inherit; background: white; }
+        .search-bar input:focus, .search-bar select:focus { outline: none; border-color: #5c6bc0; }
+        .search-bar input { min-width: 220px; }
+        .fields-section { background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .fields-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .fields-list { display: flex; flex-wrap: wrap; gap: 10px; }
+        .field-tag { display: flex; align-items: center; gap: 8px; background: #f0f2ff; border: 1px solid #c5caf5; border-radius: 20px; padding: 6px 14px; font-size: 13px; color: #3f51b5; }
+        .field-type-badge { font-size: 11px; background: #c5caf5; color: #3f51b5; padding: 2px 6px; border-radius: 10px; }
+        .field-delete-btn { background: none; border: none; cursor: pointer; color: #e53935; font-size: 14px; padding: 0; line-height: 1; }
+        .no-fields-text { color: #aaa; font-size: 13px; }
+        .assets-section { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .assets-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid #eee; }
+        table { width: 100%; border-collapse: collapse; }
+        thead { background: #f8f9ff; }
+        th { padding: 14px 16px; text-align: left; font-size: 13px; font-weight: 600; color: #555; border-bottom: 1px solid #eee; }
+        td { padding: 14px 16px; font-size: 14px; border-bottom: 1px solid #f5f5f5; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #fafafa; }
+        td a { color: #5c6bc0; text-decoration: none; font-weight: 500; }
+        td a:hover { text-decoration: underline; }
+        .empty-state { text-align: center; padding: 48px 20px; color: #aaa; }
+        .empty-state p { margin-bottom: 16px; font-size: 14px; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: white; border-radius: 12px; padding: 32px; width: 420px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+        .modal h2 { font-size: 18px; margin-bottom: 20px; }
+        .modal label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #555; }
+        .modal input, .modal select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; margin-bottom: 16px; font-family: inherit; }
+        .modal input:focus, .modal select:focus { outline: none; border-color: #5c6bc0; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+        .warning-text { font-size: 13px; color: #888; margin-bottom: 20px; line-height: 1.6; }
+        .warning-text strong { color: #e53935; }
+        .no-results { text-align: center; padding: 32px; color: #aaa; font-size: 14px; }
+        .error-msg { background: #ffebee; color: #c62828; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; border-radius: 6px; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>Enterprise Asset Management</h2>
+    <div class="nav-right">
+        <span>{{ username }}</span>
+        <a href="/logout">Logout</a>
+    </div>
+</div>
+
+<div class="breadcrumb">
+    <a href="/dashboard">Dashboard</a> &rsaquo;
+    <a href="/department/{{ asset_type[3] }}">{{ asset_type[3] }}</a> &rsaquo;
+    {{ asset_type[1] }}
+</div>
+
+<div class="content">
+
+    <div class="page-header">
+        <h1>{{ asset_type[1] }}</h1>
+        <div class="header-actions">
+            <button class="btn btn-primary" onclick="openAddAssetModal()">
+                + Add Asset
+            </button>
+            <button class="btn btn-danger" onclick="openDeleteTypeModal()">
+                Delete Asset Type
+            </button>
+        </div>
+    </div>
+
+    <p class="page-subtitle">
+        {{ asset_type[3] }} &rsaquo; {{ asset_type[1] }}
+        &mdash; Prefix: {{ asset_type[2] }}
+    </p>
+
+    <!-- Custom Fields Section -->
+    <div class="fields-section">
+        <div class="fields-header">
+            <div class="section-title">Custom Fields</div>
+            <button class="btn btn-primary btn-sm"
+                    onclick="openAddFieldModal()">
+                + Create Custom Field
+            </button>
+        </div>
+
+        {% if type_fields %}
+            <div class="fields-list">
+                {% for field in type_fields %}
+                <div class="field-tag">
+                    {{ field[1] }}
+                    <span class="field-type-badge">{{ field[2] }}</span>
+                    <button
+                        class="field-delete-btn"
+                        data-field-id="{{ field[0] }}"
+                        data-field-name="{{ field[1] }}"
+                        onclick="openDeleteFieldModal(
+                            this.dataset.fieldId,
+                            this.dataset.fieldName
+                        )"
+                        title="Delete field"
+                    >✕</button>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="no-fields-text">
+                No custom fields yet. Create one to add shared
+                fields across all {{ asset_type[1] }} assets.
+            </p>
+        {% endif %}
+    </div>
+
+    <!-- Assets Section -->
+    <div class="assets-section">
+        <div class="assets-header">
+            <div class="section-title">Assets ({{ assets|length }})</div>
+        </div>
+
+        {% if assets %}
+            <div style="padding: 16px 24px; border-bottom: 1px solid #eee;">
+                <div class="search-bar">
+                    <input
+                        type="text"
+                        id="searchInput"
+                        placeholder="Search by name, asset ID or serial number..."
+                        onkeyup="filterAssets()"
+                    >
+                    <select id="warrantyFilter" onchange="filterAssets()">
+                        <option value="">All Warranty Statuses</option>
+                        <option value="remaining">Active</option>
+                        <option value="expired">Expired</option>
+                        <option value="n/a">N/A</option>
+                    </select>
+                </div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Asset ID</th>
+                        <th>Name</th>
+                        <th>Serial Number</th>
+                        <th>Location</th>
+                        <th>Warranty</th>
+                        <th>Created</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="assetsTableBody">
+                    {% for asset in assets %}
+                    <tr
+                        data-name="{{ asset[2]|lower }}"
+                        data-assetid="{{ asset[1]|lower }}"
+                        data-serial="{{ asset[3]|lower }}"
+                        data-warranty="{{ asset[8]|lower }}"
+                    >
+                        <td>{{ asset[1] }}</td>
+                        <td>{{ asset[2] }}</td>
+                        <td>{{ asset[3] }}</td>
+                        <td>{{ asset[4] if asset[4] else '—' }}</td>
+                        <td>{{ asset[8] }}</td>
+                        <td>{{ asset[7][:10] if asset[7] else 'N/A' }}</td>
+                        <td><a href="/asset/{{ asset[0] }}">View</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <div id="noResults" class="no-results" style="display:none;">
+                No assets match your search.
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <p>No assets added yet.</p>
+                <button class="btn btn-primary" onclick="openAddAssetModal()">
+                    + Add First Asset
+                </button>
+            </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- Add Asset Modal -->
+<div class="modal-overlay" id="addAssetModal">
+    <div class="modal">
+        <h2>Add Asset</h2>
+        <div class="error-msg" id="addAssetError"></div>
+        <form id="addAssetForm" method="POST"
+              action="/asset-type/{{ asset_type[0] }}/add-asset">
+            <label>Asset Name *</label>
+            <input type="text" name="name"
+                   placeholder="e.g. Dell Latitude 7420" required>
+
+            <label>Serial Number *</label>
+            <input
+                type="text"
+                name="serial_number"
+                id="serialNumberInput"
+                placeholder="e.g. SN123456"
+                required
+                autocomplete="off"
+                oninput="this.value = this.value.toUpperCase()"
+            >
+
+            <label>Location</label>
+            <input type="text" name="location"
+                   placeholder="e.g. Room 204, Block B">
+
+            <label>Warranty Start Date</label>
+            <input type="date" name="warranty_start">
+
+            <label>Warranty End Date</label>
+            <input type="date" name="warranty_end">
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-cancel"
+                        onclick="closeAddAssetModal()">Cancel</button>
+                <button type="submit" id="addAssetBtn"
+                        class="btn btn-primary">Save Asset</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Custom Field Modal -->
+<div class="modal-overlay" id="addFieldModal">
+    <div class="modal">
+        <h2>Create Custom Field</h2>
+        <p class="warning-text">
+            This field will appear for
+            <strong>every {{ asset_type[1] }}</strong> asset.
+        </p>
+        <form id="addFieldForm" method="POST"
+              action="/asset-type/{{ asset_type[0] }}/add-field">
+            <label>Field Type</label>
+            <select name="field_type">
+                <option value="text">Text</option>
+                <option value="date">Date</option>
+            </select>
+            <label>Field Name</label>
+            <input type="text" name="field_name"
+                   placeholder="e.g. Processor" required>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-cancel"
+                        onclick="closeAddFieldModal()">Cancel</button>
+                <button type="submit" id="addFieldBtn"
+                        class="btn btn-primary">Create Field</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Custom Field Modal -->
+<div class="modal-overlay" id="deleteFieldModal">
+    <div class="modal">
+        <h2>Delete Custom Field</h2>
+        <div class="warning-text">
+            Deleting <strong id="deleteFieldName"></strong> will permanently
+            remove this field and all its values from
+            <strong>every {{ asset_type[1] }}</strong> asset.
+            This action cannot be undone.<br><br>
+            Enter your password to confirm.
+        </div>
+        <div class="error-msg" id="deleteFieldError"></div>
+        <form id="deleteFieldForm" method="POST">
+            <label>Your Password</label>
+            <input type="password" name="password"
+                   placeholder="Enter your password" required>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-cancel"
+                        onclick="closeDeleteFieldModal()">Cancel</button>
+                <button type="submit" id="deleteFieldBtn"
+                        class="btn btn-danger">Delete Field</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Asset Type Modal -->
+<div class="modal-overlay" id="deleteTypeModal">
+    <div class="modal">
+        <h2>Delete Asset Type</h2>
+        <div class="warning-text">
+            Deleting <strong>{{ asset_type[1] }}</strong> will permanently
+            remove this asset type and
+            <strong>all {{ assets|length }} asset(s) inside it</strong>.
+            This action cannot be undone.<br><br>
+            Enter your password to confirm.
+        </div>
+        <form method="POST"
+              action="/asset-type/{{ asset_type[0] }}/delete"
+              id="deleteTypeForm">
+            <label>Your Password</label>
+            <input type="password" name="password"
+                   placeholder="Enter your password" required>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-cancel"
+                        onclick="closeDeleteTypeModal()">Cancel</button>
+                <button type="submit" id="deleteTypeBtn"
+                        class="btn btn-danger">Delete Permanently</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // ─── Modal controls ───────────────────────────────────────
+
+    function openAddAssetModal() {
+        document.getElementById('addAssetModal').classList.add('active');
+        document.getElementById('addAssetError').style.display = 'none';
+    }
+    function closeAddAssetModal() {
+        document.getElementById('addAssetModal').classList.remove('active');
+        document.getElementById('addAssetError').style.display = 'none';
+        document.getElementById('addAssetForm').reset();
+    }
+    function openAddFieldModal() {
+        document.getElementById('addFieldModal').classList.add('active');
+    }
+    function closeAddFieldModal() {
+        document.getElementById('addFieldModal').classList.remove('active');
+    }
+    function openDeleteFieldModal(fieldId, fieldName) {
+        document.getElementById('deleteFieldName').textContent = fieldName;
+        document.getElementById('deleteFieldForm').action =
+            `/asset-type/{{ asset_type[0] }}/delete-field/${fieldId}`;
+        document.getElementById('deleteFieldError').style.display = 'none';
+        document.getElementById('deleteFieldModal').classList.add('active');
+    }
+    function closeDeleteFieldModal() {
+        document.getElementById('deleteFieldModal').classList.remove('active');
+    }
+    function openDeleteTypeModal() {
+        document.getElementById('deleteTypeModal').classList.add('active');
+    }
+    function closeDeleteTypeModal() {
+        document.getElementById('deleteTypeModal').classList.remove('active');
+    }
+
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', function(e) {
+            if (e.target === this) this.classList.remove('active');
+        });
+    });
+
+    // ─── Add Asset — fetch with error display ─────────────────
+
+    document.getElementById('addAssetForm')
+        .addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const btn = document.getElementById('addAssetBtn');
+            const errorDiv = document.getElementById('addAssetError');
+
+            if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+            errorDiv.style.display = 'none';
+
+            fetch(this.action, { method: 'POST', body: new FormData(this) })
+            .then(function(response) {
+                return response.json().then(function(data) {
+                    return { status: response.status, data: data };
+                });
+            })
+            .then(function(result) {
+                if (result.status === 200 && result.data.success) {
+                    location.reload();
+                } else {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = 'Save Asset';
+                    }
+                    errorDiv.textContent = result.data.error ||
+                        'Something went wrong.';
+                    errorDiv.style.display = 'block';
+                }
+            })
+            .catch(function(err) {
+                console.error(err);
+                if (btn) { btn.disabled = false; btn.textContent = 'Save Asset'; }
+                errorDiv.textContent = 'Network error. Please try again.';
+                errorDiv.style.display = 'block';
+            });
+        });
+
+    // ─── Add Custom Field — fetch ─────────────────────────────
+
+    document.getElementById('addFieldForm')
+        .addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('addFieldBtn');
+            if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
+            fetch(this.action, { method: 'POST', body: new FormData(this) })
+                .then(function() { location.reload(); })
+                .catch(function(err) {
+                    console.error(err);
+                    if (btn) { btn.disabled = false; btn.textContent = 'Create Field'; }
+                });
+        });
+
+    // ─── Delete Custom Field — fetch ──────────────────────────
+
+    document.getElementById('deleteFieldForm')
+        .addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('deleteFieldBtn');
+            if (btn) { btn.disabled = true; btn.textContent = 'Deleting...'; }
+            fetch(this.action, { method: 'POST', body: new FormData(this) })
+                .then(function() { location.reload(); })
+                .catch(function(err) {
+                    console.error(err);
+                    if (btn) { btn.disabled = false; btn.textContent = 'Delete Field'; }
+                });
+        });
+
+    // ─── Delete Asset Type — normal submit (navigates away) ───
+
+    document.getElementById('deleteTypeForm')
+        .addEventListener('submit', function() {
+            const btn = document.getElementById('deleteTypeBtn');
+            if (btn) { btn.disabled = true; btn.textContent = 'Deleting...'; }
+        });
+
+    // ─── Search and filter ────────────────────────────────────
+
+    function filterAssets() {
+        const searchVal = document.getElementById('searchInput')
+            .value.toLowerCase();
+        const warrantyVal = document.getElementById('warrantyFilter')
+            .value.toLowerCase();
+
+        const rows = document.querySelectorAll('#assetsTableBody tr');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const name = row.dataset.name || '';
+            const assetId = row.dataset.assetid || '';
+            const serial = row.dataset.serial || '';
+            const warranty = row.dataset.warranty || '';
+
+            const matchesSearch = !searchVal ||
+                name.includes(searchVal) ||
+                assetId.includes(searchVal) ||
+                serial.includes(searchVal);
+
+            const matchesWarranty = !warrantyVal ||
+                warranty.includes(warrantyVal);
+
+            if (matchesSearch && matchesWarranty) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        const noResults = document.getElementById('noResults');
+        if (noResults) {
+            noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+        }
+    }
+</script>
+
+</body>
+</html>

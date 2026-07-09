@@ -4,97 +4,67 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EAM System | Sign Up</title>
-
     <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
 </head>
-
 <body>
 
 <div class="container">
-
     <div class="card">
 
         <h1>Create Account</h1>
-        <p class="subtitle">
-            Register your organization
-        </p>
+        <p class="subtitle">Register your organization</p>
 
         {% if error %}
-            <div class="error">
-                {{ error }}
-            </div>
+            <div class="error">{{ error }}</div>
         {% endif %}
 
-        <form method="POST" action="/signup">
+        <form method="POST" action="/signup" id="signupForm">
 
             <label>First Name</label>
-            <input
-                type="text"
-                name="first_name"
-                required
-            >
+            <input type="text" name="first_name" required>
 
             <label>Last Name</label>
-            <input
-                type="text"
-                name="last_name"
-                required
-            >
+            <input type="text" name="last_name" required>
 
             <label>Company Name</label>
-            <input
-                type="text"
-                name="company"
-                required
-            >
+            <input type="text" name="company" required>
 
             <label>Email</label>
-            <input
-                type="email"
-                name="email"
-                required
-            >
+            <input type="email" name="email" required>
 
             <label>Username</label>
-            <input
-                type="text"
-                name="username"
-                required
-            >
+            <input type="text" name="username" required>
 
             <label>Password</label>
-            <input
-                type="password"
-                name="password"
-                required
-            >
+            <input type="password" name="password" required>
 
             <label>Confirm Password</label>
-            <input
-                type="password"
-                name="confirm_password"
-                required
-            >
+            <input type="password" name="confirm_password" required>
 
-            <button type="submit">
+            <button type="submit" id="signupBtn">
                 Create Account
             </button>
 
         </form>
 
         <div class="bottom-text">
-
             Already have an account?
-
-            <a href="/login">
-                Login
-            </a>
-
+            <a href="/login">Login</a>
         </div>
 
     </div>
-
 </div>
+
+<script>
+    document.getElementById('signupForm')
+        .addEventListener('submit', function() {
+            const btn = document.getElementById('signupBtn');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Creating Account...';
+            }
+        });
+</script>
 
 </body>
 </html>

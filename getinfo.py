@@ -136,13 +136,13 @@ def send_heartbeat():
             "model": system.Model,
             "ssid": ssid,
             "logged_in_user": logged_in_user,
-            "battery_percentage": battery_percentage
+            "battery_percentage": battery_percentage  
         }
 
         print("Sending payload:", payload)
 
         response = requests.post(
-            "http://127.0.0.1:5000/heartbeat",
+            "http://192.168.29.137:5000/heartbeat",
             json=payload,
             timeout=10
         )

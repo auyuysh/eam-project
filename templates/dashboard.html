@@ -1,79 +1,288 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>EAM Dashboard</title>
-
-    <link
-        rel="stylesheet"
-        href="{{ url_for('static', filename='css/dashboard.css') }}"
-    >
-
-    <link
-        href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
-        rel="stylesheet"
-    >
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Dashboard — EAM</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Poppins', sans-serif; background: #f5f6fa; color: #333; }
+        .navbar { background: #1a1a2e; color: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; }
+        .navbar h2 { font-size: 18px; }
+        .nav-right { display: flex; gap: 16px; align-items: center; font-size: 14px; color: #aaa; }
+        .nav-right a { color: #aaa; text-decoration: none; }
+        .nav-right a:hover { color: white; }
+        .content { padding: 32px; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .page-header h1 { font-size: 24px; }
+        .page-subtitle { color: #888; font-size: 14px; margin-bottom: 32px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; text-decoration: none; display: inline-block; }
+        .btn-primary { background: #5c6bc0; color: white; }
+        .btn-primary:hover { background: #3f51b5; }
+        .btn-danger { background: #e53935; color: white; }
+        .btn-danger:hover { background: #c62828; }
+        .btn-cancel { background: #f0f0f0; color: #555; }
+        .btn-cancel:hover { background: #e0e0e0; }
+        .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+        .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; flex-direction: column; gap: 8px; }
+        .card-name { font-size: 16px; font-weight: 600; text-transform: uppercase; }
+        .card-actions { margin-top: 12px; display: flex; gap: 8px; align-items: center; }
+        .card-actions a { display: inline-block; padding: 8px 20px; background: #5c6bc0; color: white; border-radius: 6px; text-decoration: none; font-size: 13px; }
+        .card-actions a:hover { background: #3f51b5; }
+        .card-delete-btn { background: none; border: none; cursor: pointer; color: #e53935; font-size: 13px; padding: 4px 8px; border-radius: 4px; font-family: inherit; font-weight: 500; }
+        .card-delete-btn:hover { background: #ffebee; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #aaa; }
+        .empty-state p { font-size: 15px; margin-bottom: 16px; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: white; border-radius: 12px; padding: 32px; width: 420px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+        .modal h2 { font-size: 18px; margin-bottom: 20px; }
+        .modal label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #555; }
+        .modal input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; margin-bottom: 4px; box-sizing: border-box; font-family: inherit; text-transform: uppercase; }
+        .modal input:focus { outline: none; border-color: #5c6bc0; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+        .error-msg { background: #ffebee; color: #c62828; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+        .success-hint { font-size: 12px; color: #5c6bc0; margin-bottom: 16px; min-height: 18px; }
+        .warning-text { font-size: 13px; color: #888; margin-bottom: 20px; line-height: 1.6; }
+        .warning-text strong { color: #e53935; }
+    </style>
 </head>
 <body>
 
-    <h1>Enterprise Asset Management System</h1>
+<div class="navbar">
+    <h2>Enterprise Asset Management</h2>
+    <div class="nav-right">
+        <span>{{ username }}</span>
+        <a href="/logout">Logout</a>
+    </div>
+</div>
 
-    <p>Welcome, {{ session.username }}</p>
+<div class="content">
 
-    <hr>
-
-    <h2>Departments</h2>
-
-    <form action="/create-department" method="POST">
-        <input
-            type="text"
-            name="name"
-            placeholder="Department Name"
-            required
-        >
-
-        <button type="submit">
-            Create Department
+    <div class="page-header">
+        <h1>Dashboard</h1>
+        <button class="btn btn-primary" onclick="openCreateModal()">
+            + Create Department
         </button>
-    </form>
+    </div>
 
-    <br>
+    <p class="page-subtitle">Manage your organization's departments.</p>
 
     {% if departments %}
-
-        <table border="1" cellpadding="10">
-
-            <tr>
-                <th>Department</th>
-                <th>Action</th>
-            </tr>
-
-            {% for department in departments %}
-
-            <tr>
-
-                <td>{{ department[1] }}</td>
-
-                <td>
-                    <a href="/department/{{ department[1] }}">
-                        View
-                    </a>
-                </td>
-
-            </tr>
-
+        <div class="cards-grid">
+            {% for dept in departments %}
+            <div class="card">
+                <div class="card-name">{{ dept[1] | upper }}</div>
+                <div class="card-actions">
+                    <a href="/department/{{ dept[1] }}">View</a>
+                    <button
+                        class="card-delete-btn"
+                        data-dept-id="{{ dept[0] }}"
+                        data-dept-name="{{ dept[1] | upper }}"
+                        onclick="openDeleteModal(
+                            this.dataset.deptId,
+                            this.dataset.deptName
+                        )"
+                    >Delete</button>
+                </div>
+            </div>
             {% endfor %}
-
-        </table>
-
+        </div>
     {% else %}
-
-        <p>No departments created yet.</p>
-
+        <div class="empty-state">
+            <p>No departments created yet.</p>
+            <button class="btn btn-primary" onclick="openCreateModal()">
+                + Create Your First Department
+            </button>
+        </div>
     {% endif %}
 
-    <br>
+</div>
 
-    <a href="/logout">Logout</a>
+<!-- Create Department Modal -->
+<div class="modal-overlay" id="createModal">
+    <div class="modal">
+        <h2>Create Department</h2>
+        <div class="error-msg" id="createError"></div>
+        <form id="createDeptForm" method="POST" action="/create-department">
+
+            <label>Department Name</label>
+            <input
+                type="text"
+                name="name"
+                id="deptNameInput"
+                placeholder="e.g. INFORMATION TECHNOLOGY"
+                required
+                autocomplete="off"
+                oninput="this.value = this.value.toUpperCase(); updateHint()"
+            >
+            <div class="success-hint" id="nameHint"></div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-cancel"
+                        onclick="closeCreateModal()">Cancel</button>
+                <button type="submit" id="createDeptBtn"
+                        class="btn btn-primary">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Department Modal -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal">
+        <h2>Delete Department</h2>
+        <div class="warning-text">
+            Deleting <strong id="deleteDeptName"></strong> will permanently
+            remove this department and <strong>all asset types and assets
+            inside it</strong>. This action cannot be undone.<br><br>
+            Enter your password to confirm.
+        </div>
+        <div class="error-msg" id="deleteError"></div>
+        <form id="deleteDeptForm" method="POST">
+            <label>Your Password</label>
+            <input
+                type="password"
+                name="password"
+                placeholder="Enter your password"
+                required
+                style="text-transform: none;"
+            >
+            <div class="modal-actions">
+                <button type="button" class="btn btn-cancel"
+                        onclick="closeDeleteModal()">Cancel</button>
+                <button type="submit" id="deleteDeptBtn"
+                        class="btn btn-danger">Delete Permanently</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // ─── Create Modal ─────────────────────────────────────────
+
+    function openCreateModal() {
+        document.getElementById('createModal').classList.add('active');
+        document.getElementById('deptNameInput').focus();
+    }
+
+    function closeCreateModal() {
+        document.getElementById('createModal').classList.remove('active');
+        document.getElementById('deptNameInput').value = '';
+        document.getElementById('nameHint').textContent = '';
+        document.getElementById('createError').style.display = 'none';
+        const btn = document.getElementById('createDeptBtn');
+        if (btn) { btn.disabled = false; btn.textContent = 'Create'; }
+    }
+
+    function updateHint() {
+        const val = document.getElementById('deptNameInput').value.trim();
+        document.getElementById('nameHint').textContent =
+            val ? `Will be saved as: ${val}` : '';
+    }
+
+    document.getElementById('createModal').addEventListener('click', function(e) {
+        if (e.target === this) closeCreateModal();
+    });
+
+    document.getElementById('createDeptForm')
+        .addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const btn = document.getElementById('createDeptBtn');
+            const errorDiv = document.getElementById('createError');
+
+            if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
+            errorDiv.style.display = 'none';
+
+            fetch(this.action, { method: 'POST', body: new FormData(this) })
+            .then(function(res) {
+                return res.json().then(function(data) {
+                    return { status: res.status, data: data };
+                });
+            })
+            .then(function(result) {
+                if (result.status === 200 && result.data.success) {
+                    location.reload();
+                } else {
+                    if (btn) { btn.disabled = false; btn.textContent = 'Create'; }
+                    errorDiv.textContent = result.data.error ||
+                        'Something went wrong.';
+                    errorDiv.style.display = 'block';
+                }
+            })
+            .catch(function(err) {
+                console.error(err);
+                if (btn) { btn.disabled = false; btn.textContent = 'Create'; }
+                errorDiv.textContent = 'Network error. Please try again.';
+                errorDiv.style.display = 'block';
+            });
+        });
+
+    // ─── Delete Modal ─────────────────────────────────────────
+
+    function openDeleteModal(deptId, deptName) {
+        document.getElementById('deleteDeptName').textContent = deptName;
+        document.getElementById('deleteDeptForm').action =
+            `/delete-department/${deptId}`;
+        document.getElementById('deleteError').style.display = 'none';
+        document.getElementById('deleteDeptForm').reset();
+        const btn = document.getElementById('deleteDeptBtn');
+        if (btn) { btn.disabled = false; btn.textContent = 'Delete Permanently'; }
+        document.getElementById('deleteModal').classList.add('active');
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.remove('active');
+        document.getElementById('deleteError').style.display = 'none';
+    }
+
+    document.getElementById('deleteModal').addEventListener('click', function(e) {
+        if (e.target === this) closeDeleteModal();
+    });
+
+    document.getElementById('deleteDeptForm')
+        .addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const btn = document.getElementById('deleteDeptBtn');
+            const errorDiv = document.getElementById('deleteError');
+
+            if (btn) { btn.disabled = true; btn.textContent = 'Deleting...'; }
+            errorDiv.style.display = 'none';
+
+            fetch(this.action, { method: 'POST', body: new FormData(this) })
+            .then(function(res) {
+                return res.json().then(function(data) {
+                    return { status: res.status, data: data };
+                });
+            })
+            .then(function(result) {
+                if (result.status === 200 && result.data.success) {
+                    location.reload();
+                } else {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = 'Delete Permanently';
+                    }
+                    errorDiv.textContent = result.data.error ||
+                        'Something went wrong.';
+                    errorDiv.style.display = 'block';
+                }
+            })
+            .catch(function(err) {
+                console.error(err);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = 'Delete Permanently';
+                }
+                errorDiv.textContent = 'Network error. Please try again.';
+                errorDiv.style.display = 'block';
+            });
+        });
+</script>
 
 </body>
 </html>

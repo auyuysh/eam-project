@@ -1,43 +1,188 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>{{ dept_name }} Department</title>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>{{ dept_name }} — EAM</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Poppins', sans-serif; background: #f5f6fa; color: #333; }
+        .navbar { background: #1a1a2e; color: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; }
+        .navbar h2 { font-size: 18px; }
+        .nav-right { display: flex; gap: 16px; align-items: center; font-size: 14px; color: #aaa; }
+        .nav-right a { color: #aaa; text-decoration: none; }
+        .nav-right a:hover { color: white; }
+        .breadcrumb { padding: 12px 32px; font-size: 13px; color: #888; background: white; border-bottom: 1px solid #eee; }
+        .breadcrumb a { color: #5c6bc0; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+        .content { padding: 32px; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .page-header h1 { font-size: 24px; }
+        .page-subtitle { color: #888; font-size: 14px; margin-bottom: 32px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; text-decoration: none; display: inline-block; }
+        .btn-primary { background: #5c6bc0; color: white; }
+        .btn-primary:hover { background: #3f51b5; }
+        .btn-cancel { background: #f0f0f0; color: #555; }
+        .btn-cancel:hover { background: #e0e0e0; }
+        .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+        .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; flex-direction: column; gap: 8px; }
+        .card-name { font-size: 16px; font-weight: 600; }
+        .card-count { font-size: 13px; color: #888; }
+        .card-actions { margin-top: 12px; }
+        .card-actions a { display: inline-block; padding: 8px 20px; background: #5c6bc0; color: white; border-radius: 6px; text-decoration: none; font-size: 13px; }
+        .card-actions a:hover { background: #3f51b5; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #aaa; }
+        .empty-state p { font-size: 15px; margin-bottom: 16px; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: white; border-radius: 12px; padding: 32px; width: 420px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+        .modal h2 { font-size: 18px; margin-bottom: 20px; }
+        .modal label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #555; }
+        .modal input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; margin-bottom: 16px; box-sizing: border-box; font-family: inherit; }
+        .modal input:focus { outline: none; border-color: #5c6bc0; }
+        .modal-hint { font-size: 12px; color: #aaa; margin-top: -12px; margin-bottom: 16px; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+        .prefix-preview { font-size: 12px; color: #5c6bc0; margin-top: -12px; margin-bottom: 16px; font-weight: 500; min-height: 18px; }
+    </style>
 </head>
 <body>
-    <h1>{{ dept_name }} Department — Devices</h1>
 
-    {% if devices %}
-    <table border="1" cellpadding="8">
-        <tr>
-            <th>Hostname</th>
-            <th>Employee</th>
-            <th>Battery</th>
-            <th>Status</th>
-            <th>Last Seen</th>
-            <th>Details</th>
-        </tr>
-        {% for device in devices %}
-        <tr>
-            <td>{{ device[1] }}</td>
-            <td>{{ device[2] if device[2] else 'Unassigned' }}</td>
-            <td>
-                {% if device[3] is not none %}
-                    {{ device[3] }}%
-                {% else %}
-                    N/A
-                {% endif %}
-            </td>
-            <td>{{ device[4] }}</td>
-            <td>{{ device[5] }}</td>
-            <td><a href="/device/{{ device[0] }}">View</a></td>
-        </tr>
-        {% endfor %}
-    </table>
+<div class="navbar">
+    <h2>Enterprise Asset Management</h2>
+    <div class="nav-right">
+        <span>{{ username }}</span>
+        <a href="/logout">Logout</a>
+    </div>
+</div>
+
+<div class="breadcrumb">
+    <a href="/dashboard">Dashboard</a> &rsaquo; {{ dept_name }}
+</div>
+
+<div class="content">
+
+    <div class="page-header">
+        <h1>{{ dept_name }}</h1>
+        <button class="btn btn-primary" onclick="openModal()">
+            + Create Asset Type
+        </button>
+    </div>
+
+    <p class="page-subtitle">
+        Manage all asset types under this department.
+    </p>
+
+    {% if asset_types %}
+        <div class="cards-grid">
+            {% for at in asset_types %}
+            <div class="card">
+                <div class="card-name">{{ at[1] }}</div>
+                <div class="card-count">Assets: {{ at[3] }}</div>
+                <div class="card-count" style="font-size:12px; color:#bbb;">
+                    Prefix: {{ at[2] }}
+                </div>
+                <div class="card-actions">
+                    <a href="/asset-type/{{ at[0] }}">View</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     {% else %}
-        <p>No devices registered in this department yet.</p>
+        <div class="empty-state">
+            <p>No asset types created yet.</p>
+            <button class="btn btn-primary" onclick="openModal()">
+                + Create Your First Asset Type
+            </button>
+        </div>
     {% endif %}
 
-    <br>
-    <a href="/dashboard">← Back to Dashboard</a>
+</div>
+
+<!-- Create Asset Type Modal -->
+<div class="modal-overlay" id="createModal">
+    <div class="modal">
+        <h2>Create Asset Type</h2>
+        <form id="createAssetTypeForm" method="POST"
+              action="/department/{{ dept_name }}/create-asset-type">
+
+            <label>Asset Type Name</label>
+            <input
+                type="text"
+                name="name"
+                id="assetTypeName"
+                placeholder="e.g. Laptop"
+                required
+                autocomplete="off"
+                oninput="updatePreview()"
+            >
+            <div class="prefix-preview" id="prefixPreview"></div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-cancel"
+                        onclick="closeModal()">Cancel</button>
+                <button type="submit" id="createBtn"
+                        class="btn btn-primary">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openModal() {
+        document.getElementById('createModal').classList.add('active');
+        document.getElementById('assetTypeName').focus();
+        updatePreview();
+    }
+
+    function closeModal() {
+        document.getElementById('createModal').classList.remove('active');
+        document.getElementById('assetTypeName').value = '';
+        document.getElementById('prefixPreview').textContent = '';
+    }
+
+    function updatePreview() {
+        const name = document.getElementById('assetTypeName').value
+            .trim().toUpperCase();
+        const dept = '{{ dept_name }}'.toUpperCase();
+        const preview = document.getElementById('prefixPreview');
+
+        if (name.length >= 1) {
+            const deptPart = dept.substring(0, 3);
+            const typePart = name.substring(0, 3);
+            preview.textContent = `Auto-generated prefix: ${deptPart}-${typePart}`;
+        } else {
+            preview.textContent = '';
+        }
+    }
+
+    document.getElementById('createModal').addEventListener('click', function(e) {
+        if (e.target === this) closeModal();
+    });
+
+    // ─── Fetch submission to prevent history stacking ─────────
+
+    document.getElementById('createAssetTypeForm')
+        .addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const btn = document.getElementById('createBtn');
+            if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
+
+            fetch(this.action, {
+                method: 'POST',
+                body: new FormData(this)
+            })
+            .then(function() {
+                location.reload();
+            })
+            .catch(function(err) {
+                console.error(err);
+                if (btn) { btn.disabled = false; btn.textContent = 'Create'; }
+            });
+        });
+</script>
+
 </body>
 </html>

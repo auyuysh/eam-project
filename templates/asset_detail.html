@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>{{ asset[2] }} — EAM</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Poppins', sans-serif; background: #f5f6fa; color: #333; }
+        .navbar { background: #1a1a2e; color: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; }
+        .navbar h2 { font-size: 18px; }
+        .nav-right { display: flex; gap: 16px; align-items: center; font-size: 14px; color: #aaa; }
+        .nav-right a { color: #aaa; text-decoration: none; }
+        .nav-right a:hover { color: white; }
+        .breadcrumb { padding: 12px 32px; font-size: 13px; color: #888; background: white; border-bottom: 1px solid #eee; }
+        .breadcrumb a { color: #5c6bc0; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+        .content { padding: 32px; max-width: 900px; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
+        .page-header h1 { font-size: 24px; }
+        .asset-id-badge { font-size: 13px; background: #f0f2ff; color: #3f51b5; padding: 4px 12px; border-radius: 20px; font-weight: 500; margin-left: 12px; }
+        .section { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .section-title { font-size: 15px; font-weight: 600; color: #333; }
+        .field-row { display: grid; grid-template-columns: 200px 1fr; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f5f5f5; align-items: center; }
+        .field-row:last-child { border-bottom: none; }
+        .field-label { font-size: 13px; color: #888; font-weight: 500; }
+        .field-value { font-size: 14px; color: #333; }
+        .warranty-status { font-size: 13px; font-weight: 500; }
+
+        /* Type field rows — display and edit modes */
+        .type-field-row { padding: 12px 0; border-bottom: 1px solid #f5f5f5; }
+        .type-field-row:last-child { border-bottom: none; }
+
+        .type-field-display { display: grid; grid-template-columns: 200px 1fr auto; gap: 12px; align-items: center; }
+        .type-field-edit { display: none; grid-template-columns: 200px 1fr auto; gap: 12px; align-items: center; }
+        .type-field-edit.active { display: grid; }
+        .type-field-display.hidden { display: none; }
+
+        .type-field-form { display: flex; gap: 8px; align-items: center; }
+        .type-field-form input { padding: 7px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: inherit; flex: 1; }
+        .type-field-form input:focus { outline: none; border-color: #5c6bc0; }
+
+        .displayed-value { font-size: 14px; color: #333; }
+        .displayed-value.empty { color: #bbb; font-style: italic; }
+
+        .edit-btn { background: none; border: 1px solid #ddd; cursor: pointer; color: #5c6bc0; font-size: 12px; padding: 4px 10px; border-radius: 4px; font-family: inherit; white-space: nowrap; }
+        .edit-btn:hover { background: #f0f2ff; }
+        .cancel-edit-btn { background: none; border: none; cursor: pointer; color: #aaa; font-size: 12px; padding: 4px 8px; border-radius: 4px; font-family: inherit; }
+        .cancel-edit-btn:hover { color: #555; }
+
+        .custom-field-row { display: grid; grid-template-columns: 200px 1fr auto; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f5f5f5; align-items: center; }
+        .custom-field-row:last-child { border-bottom: none; }
+        .delete-field-btn { background: none; border: none; cursor: pointer; color: #e53935; font-size: 13px; padding: 4px 8px; border-radius: 4px; }
+        .delete-field-btn:hover { background: #ffebee; }
+
+        .btn { padding: 8px 18px; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; text-decoration: none; display: inline-block; }
+        .btn-primary { background: #5c6bc0; color: white; }
+        .btn-primary:hover { background: #3f51b5; }
+        .btn-danger { background: #e53935; color: white; }
+        .btn-danger:hover { background: #c62828; }
+        .btn-save { background: #5c6bc0; color: white; padding: 7px 14px; font-size: 12px; border: none; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+        .btn-save:disabled { background: #9fa8da; cursor: not-allowed; }
+        .btn-cancel { background: #f0f0f0; color: #555; }
+        .btn-cancel:hover { background: #e0e0e0; }
+        .no-fields-text { color: #aaa; font-size: 13px; }
+
+        .delete-asset-section { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #ffcdd2; }
+        .delete-asset-title { font-size: 15px; font-weight: 600; color: #c62828; margin-bottom: 8px; }
+        .delete-asset-desc { font-size: 13px; color: #888; margin-bottom: 16px; }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: white; border-radius: 12px; padding: 32px; width: 420px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+        .modal h2 { font-size: 18px; margin-bottom: 20px; }
+        .modal label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #555; }
+        .modal input, .modal select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; margin-bottom: 16px; font-family: inherit; }
+        .modal input:focus, .modal select:focus { outline: none; border-color: #5c6bc0; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+        .warning-text { font-size: 13px; color: #888; margin-bottom: 20px; line-height: 1.6; }
+        .warning-text strong { color: #e53935; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>Enterprise Asset Management</h2>
+    <div class="nav-right">
+        <span>{{ username }}</span>
+        <a href="/logout">Logout</a>
+    </div>
+</div>
+
+<div class="breadcrumb">
+    <a href="/dashboard">Dashboard</a> &rsaquo;
+    <a href="/department/{{ asset[9] }}">{{ asset[9] }}</a> &rsaquo;
+    <a href="/asset-type/{{ asset[10] }}">{{ asset[8] }}</a> &rsaquo;
+    {{ asset[2] }}
+</div>
+
+<div class="content">
+
+    <div class="page-header">
+        <h1>
+            {{ asset[2] }}
+            <span class="asset-id-badge">{{ asset[1] }}</span>
+        </h1>
+    </div>
+
+    <!-- Default Fields -->
+    <div class="section">
+        <div class="section-title" style="margin-bottom: 16px;">
+            Asset Information
+        </div>
+        <div class="field-row">
+            <div class="field-label">Asset ID</div>
+            <div class="field-value">{{ asset[1] }}</div>
+        </div>
+        <div class="field-row">
+            <div class="field-label">Name</div>
+            <div class="field-value">{{ asset[2] }}</div>
+        </div>
+        <div class="field-row">
+            <div class="field-label">Department</div>
+            <div class="field-value">{{ asset[9] }}</div>
+        </div>
+        <div class="field-row">
+            <div class="field-label">Asset Type</div>
+            <div class="field-value">{{ asset[8] }}</div>
+        </div>
+        <div class="field-row">
+            <div class="field-label">Serial Number</div>
+            <div class="field-value">{{ asset[3] }}</div>
+        </div>
+        <div class="field-row">
+            <div class="field-label">Location</div>
+            <div class="field-value">{{ asset[4] if asset[4] else '—' }}</div>
+        </div>
+        <div class="field-row">
+            <div class="field-label">Warranty Start</div>
+            <div class="field-value">{{ asset[5] if asset[5] else '—' }}</div>
+        </div>
+        <div class="field-row">
+            <div class="field-label">Warranty End</div>
+            <div class="field-value">{{ asset[6] if asset[6] else '—' }}</div>
+        </div>
+        <div class="field-row">
+            <div class="field-label">Warranty Status</div>
+            <div class="field-value warranty-status">{{ warranty }}</div>
+        </div>
+        <div class="field-row">
+            <div class="field-label">Created At</div>
+            <div class="field-value">
+                {{ asset[7][:10] if asset[7] else '—' }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Type-level Custom Fields -->
+    {% if type_fields %}
+    <div class="section">
+        <div class="section-title" style="margin-bottom: 4px;">
+            {{ asset[8] }} Fields
+        </div>
+        <p style="font-size: 13px; color: #aaa; margin-bottom: 16px;">
+            Shared fields for all {{ asset[8] }} assets.
+            Values here apply only to this asset.
+        </p>
+
+        {% for field in type_fields %}
+        <div class="type-field-row" id="field-row-{{ field[0] }}">
+
+            <!-- Display mode (shown when value is saved) -->
+            <div class="type-field-display {% if not field[3] %}hidden{% endif %}"
+                 id="display-{{ field[0] }}">
+                <div class="field-label">
+                    {{ field[1] }}
+                    <span style="font-size:11px; color:#bbb;">
+                        ({{ field[2] }})
+                    </span>
+                </div>
+                <div class="displayed-value" id="value-display-{{ field[0] }}">
+                    {{ field[3] if field[3] else '—' }}
+                </div>
+                <button
+                    class="edit-btn"
+                    onclick="showEditMode({{ field[0] }})"
+                >Edit</button>
+            </div>
+
+            <!-- Edit mode (shown when no value or user clicks Edit) -->
+            <div class="type-field-edit {% if field[3] %}{% else %}active{% endif %}"
+                 id="edit-{{ field[0] }}">
+                <div class="field-label">
+                    {{ field[1] }}
+                    <span style="font-size:11px; color:#bbb;">
+                        ({{ field[2] }})
+                    </span>
+                </div>
+                <form
+                    method="POST"
+                    action="/asset/{{ asset[0] }}/update-type-field/{{ field[0] }}"
+                    class="type-field-form"
+                    data-field-id="{{ field[0] }}"
+                >
+                    {% if field[2] == 'date' %}
+                        <input
+                            type="date"
+                            name="value"
+                            value="{{ field[3] if field[3] else '' }}"
+                            id="input-{{ field[0] }}"
+                        >
+                    {% else %}
+                        <input
+                            type="text"
+                            name="value"
+                            value="{{ field[3] if field[3] else '' }}"
+                            placeholder="Enter {{ field[1] }}"
+                            id="input-{{ field[0] }}"
+                        >
+                    {% endif %}
+                    <button type="submit" class="btn-save"
+                            id="save-btn-{{ field[0] }}">Save</button>
+                    {% if field[3] %}
+                    <button type="button" class="cancel-edit-btn"
+                            onclick="hideEditMode({{ field[0] }})">
+                        Cancel
+                    </button>
+                    {% endif %}
+                </form>
+            </div>
+
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Asset-specific Custom Fields -->
+    <div class="section">
+        <div class="section-header">
+            <div class="section-title">Custom Fields</div>
+            <button class="btn btn-primary" onclick="openAddCustomFieldModal()">
+                + Create Custom Field
+            </button>
+        </div>
+
+        {% if custom_fields %}
+            {% for field in custom_fields %}
+            <div class="custom-field-row">
+                <div class="field-label">
+                    {{ field[1] }}
+                    <span style="font-size:11px; color:#bbb;">
+                        ({{ field[2] }})
+                    </span>
+                </div>
+                <div class="field-value">
+                    {{ field[3] if field[3] else '—' }}
+                </div>
+                <form
+                    method="POST"
+                    action="/asset/{{ asset[0] }}/delete-custom-field/{{ field[0] }}"
+                    class="delete-field-form"
+                >
+                    <button type="submit" class="delete-field-btn">
+                        Delete
+                    </button>
+                </form>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="no-fields-text">
+                No custom fields yet. Create one specific to this asset.
+            </p>
+        {% endif %}
+    </div>
+
+    <!-- Delete Asset Section -->
+    <div class="delete-asset-section">
+        <div class="delete-asset-title">Delete Asset</div>
+        <div class="delete-asset-desc">
+            Permanently delete this asset and all its custom field data.
+            This action cannot be undone.
+        </div>
+        <button class="btn btn-danger" onclick="openDeleteAssetModal()">
+            Delete This Asset
+        </button>
+    </div>
+
+</div>
+
+<!-- Add Custom Field Modal -->
+<div class="modal-overlay" id="addCustomFieldModal">
+    <div class="modal">
+        <h2>Create Custom Field</h2>
+        <p style="font-size: 13px; color: #888; margin-bottom: 20px;">
+            This field will only appear on this specific asset.
+        </p>
+        <form method="POST"
+              action="/asset/{{ asset[0] }}/add-custom-field"
+              id="addCustomFieldForm">
+            <label>Field Type</label>
+            <select name="field_type" id="customFieldType"
+                    onchange="toggleValueInput()">
+                <option value="text">Text</option>
+                <option value="date">Date</option>
+            </select>
+            <label>Field Name</label>
+            <input type="text" name="field_name"
+                   placeholder="e.g. Docking Station" required>
+            <label>Value (optional)</label>
+            <input type="text" name="value" id="customFieldValue"
+                   placeholder="Enter value">
+            <div class="modal-actions">
+                <button type="button" class="btn btn-cancel"
+                        onclick="closeAddCustomFieldModal()">Cancel</button>
+                <button type="submit" id="addCustomFieldBtn"
+                        class="btn btn-primary">Create Field</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Asset Modal -->
+<div class="modal-overlay" id="deleteAssetModal">
+    <div class="modal">
+        <h2>Delete Asset</h2>
+        <div class="warning-text">
+            You are about to permanently delete
+            <strong>{{ asset[2] }} ({{ asset[1] }})</strong>.<br><br>
+            This will remove the asset and all its custom field data.
+            This action cannot be undone.<br><br>
+            Enter your password to confirm.
+        </div>
+        <form method="POST" action="/asset/{{ asset[0] }}/delete"
+              id="deleteAssetForm">
+            <label>Your Password</label>
+            <input type="password" name="password"
+                   placeholder="Enter your password" required>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-cancel"
+                        onclick="closeDeleteAssetModal()">Cancel</button>
+                <button type="submit" id="deleteAssetBtn"
+                        class="btn btn-danger">Delete Permanently</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // ─── Modal controls ───────────────────────────────────────
+
+    function openAddCustomFieldModal() {
+        document.getElementById('addCustomFieldModal').classList.add('active');
+    }
+    function closeAddCustomFieldModal() {
+        document.getElementById('addCustomFieldModal').classList.remove('active');
+    }
+    function openDeleteAssetModal() {
+        document.getElementById('deleteAssetModal').classList.add('active');
+    }
+    function closeDeleteAssetModal() {
+        document.getElementById('deleteAssetModal').classList.remove('active');
+    }
+    function toggleValueInput() {
+        const type = document.getElementById('customFieldType').value;
+        document.getElementById('customFieldValue').type =
+            type === 'date' ? 'date' : 'text';
+    }
+
+    document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
+        overlay.addEventListener('click', function(e) {
+            if (e.target === this) this.classList.remove('active');
+        });
+    });
+
+    // ─── Type field edit/display toggle ──────────────────────
+
+    function showEditMode(fieldId) {
+        document.getElementById('display-' + fieldId).classList.add('hidden');
+        document.getElementById('edit-' + fieldId).classList.add('active');
+        const input = document.getElementById('input-' + fieldId);
+        if (input) input.focus();
+    }
+
+    function hideEditMode(fieldId) {
+        document.getElementById('display-' + fieldId).classList.remove('hidden');
+        document.getElementById('edit-' + fieldId).classList.remove('active');
+    }
+
+    // ─── Type field save via fetch ────────────────────────────
+
+    document.querySelectorAll('.type-field-form').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const fieldId = this.dataset.fieldId;
+            const btn = document.getElementById('save-btn-' + fieldId);
+            const input = document.getElementById('input-' + fieldId);
+            const savedValue = input ? input.value.trim() : '';
+
+            if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+            fetch(this.action, { method: 'POST', body: new FormData(this) })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    // Update the displayed value
+                    const valueDisplay = document.getElementById(
+                        'value-display-' + fieldId
+                    );
+                    if (valueDisplay) {
+                        valueDisplay.textContent = savedValue || '—';
+                        valueDisplay.classList.toggle('empty', !savedValue);
+                    }
+
+                    // Ensure Cancel button exists in edit mode
+                    // (it may not if this was first save)
+                    const editDiv = document.getElementById('edit-' + fieldId);
+                    const existingCancel = editDiv.querySelector('.cancel-edit-btn');
+                    if (!existingCancel) {
+                        const saveBtn = editDiv.querySelector('.btn-save');
+                        const cancelBtn = document.createElement('button');
+                        cancelBtn.type = 'button';
+                        cancelBtn.className = 'cancel-edit-btn';
+                        cancelBtn.textContent = 'Cancel';
+                        cancelBtn.onclick = function() {
+                            hideEditMode(fieldId);
+                        };
+                        saveBtn.parentNode.insertBefore(
+                            cancelBtn, saveBtn.nextSibling
+                        );
+                    }
+
+                    // Switch to display mode
+                    hideEditMode(fieldId);
+
+                    if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+                }
+            })
+            .catch(function(err) {
+                console.error(err);
+                if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+            });
+        });
+    });
+
+    // ─── Add custom field ─────────────────────────────────────
+
+    document.getElementById('addCustomFieldForm')
+        .addEventListener('submit', function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('addCustomFieldBtn');
+            if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+            fetch(this.action, { method: 'POST', body: new FormData(this) })
+                .then(function() { location.reload(); })
+                .catch(function(err) {
+                    console.error(err);
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = 'Create Field';
+                    }
+                });
+        });
+
+    // ─── Delete custom field — event delegation ───────────────
+
+    document.addEventListener('submit', function(e) {
+        const form = e.target;
+        if (!form.classList.contains('delete-field-form')) return;
+        e.preventDefault();
+        if (!confirm('Delete this field? This only affects this asset.')) return;
+        fetch(form.action, { method: 'POST', body: new FormData(form) })
+            .then(function() { location.reload(); })
+            .catch(function(err) { console.error(err); });
+    });
+
+    // ─── Delete asset — normal submit (navigates away) ────────
+
+    document.getElementById('deleteAssetForm')
+        .addEventListener('submit', function() {
+            const btn = document.getElementById('deleteAssetBtn');
+            if (btn) { btn.disabled = true; btn.textContent = 'Deleting...'; }
+        });
+</script>
+
+</body>
+</html>
