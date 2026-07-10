@@ -25,11 +25,11 @@
 
         <form method="POST" action="/login">
 
-            <label>Username</label>
+            <label>Email Address</label>
             <input
-                type="text"
-                name="username"
-                placeholder="Enter username"
+                type="email"
+                name="email"
+                placeholder="Enter email address"
                 required
             >
 
@@ -40,6 +40,12 @@
                 placeholder="Enter password"
                 required
             >
+
+            <div style="text-align: right; margin-top: 8px;">
+                <a href="/forgot-password" style="color: #0b6efd; font-size: 13px; text-decoration: none;">
+                    Forgot Password?
+                </a>
+            </div>
 
             <button type="submit">
                 Login

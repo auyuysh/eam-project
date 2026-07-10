@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EAM System | Verify OTP</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+    <style>
+        .masked-email {
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 15px;
+            color: #444;
+        }
+        .masked-email .email-icon {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            vertical-align: middle;
+            margin-right: 6px;
+            position: relative;
+            top: -1px;
+        }
+        .masked-email .email-icon svg {
+            width: 20px;
+            height: 20px;
+            fill: #0b6efd;
+            vertical-align: middle;
+        }
+        .masked-email strong {
+            color: #222;
+            font-size: 15px;
+        }
+        .success {
+            background: #e6f9ee;
+            color: #1a7a3a;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="card">
+
+        <h1>Enterprise Asset Management</h1>
+        <p class="subtitle">Two-Factor Authentication</p>
+
+        {% if masked_email %}
+        <div class="masked-email">
+            <span class="email-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                </svg>
+            </span>
+            We've sent a verification code to <strong>{{ masked_email }}</strong>
+        </div>
+        {% endif %}
+
+        {% if error %}
+            <div class="error">
+                {{ error }}
+            </div>
+        {% endif %}
+
+        {% if success %}
+            <div class="success">
+                {{ success }}
+            </div>
+        {% endif %}
+
+        <form method="POST" action="/verify-otp">
+
+            <label>One-Time Password</label>
+            <input
+                type="text"
+                name="otp"
+                placeholder="Enter 6-digit OTP"
+                maxlength="6"
+                pattern="[0-9]{6}"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+                required
+            >
+
+            <button type="submit">
+                Verify OTP
+            </button>
+
+        </form>
+
+        <div class="bottom-text">
+            Didn't receive the code?
+            <a href="/resend-otp">Resend OTP</a>
+        </div>
+
+        <div class="bottom-text" style="margin-top: 8px;">
+            <a href="/login">Back to Login</a>
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+</html>

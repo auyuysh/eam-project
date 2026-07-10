@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile — EAM</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Poppins', sans-serif; background: #f5f6fa; color: #333; }
+        .navbar { background: #1a1a2e; color: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; }
+        .navbar h2 { font-size: 18px; }
+        .nav-right { display: flex; gap: 16px; align-items: center; font-size: 14px; color: #aaa; }
+        .nav-right a { color: #aaa; text-decoration: none; }
+        .nav-right a:hover { color: white; }
+        .content { padding: 32px; max-width: 720px; }
+        .page-header { margin-bottom: 8px; }
+        .page-header h1 { font-size: 24px; }
+        .page-subtitle { color: #888; font-size: 14px; margin-bottom: 32px; }
+        .profile-card { background: white; border-radius: 12px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .profile-section { margin-bottom: 28px; }
+        .profile-section:last-child { margin-bottom: 0; }
+        .section-title { font-size: 13px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #eee; }
+        .field-row { display: flex; padding: 10px 0; }
+        .field-label { width: 160px; font-size: 14px; color: #888; font-weight: 500; flex-shrink: 0; }
+        .field-value { font-size: 14px; color: #333; }
+        .badge-pending { display: inline-block; background: #fff3e0; color: #e65100; font-size: 12px; font-weight: 500; padding: 4px 12px; border-radius: 20px; }
+        .back-link { display: inline-block; margin-top: 24px; color: #5c6bc0; text-decoration: none; font-size: 14px; font-weight: 500; }
+        .back-link:hover { text-decoration: underline; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #555; }
+        .form-group input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; box-sizing: border-box; font-family: inherit; }
+        .form-group input:focus { outline: none; border-color: #5c6bc0; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; text-decoration: none; display: inline-block; }
+        .btn-primary { background: #5c6bc0; color: white; }
+        .btn-primary:hover { background: #3f51b5; }
+        .alert-error { background: #ffebee; color: #c62828; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; }
+        .alert-success { background: #e8f5e9; color: #2e7d32; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; }
+        .forgot-link { font-size: 13px; color: #888; margin-top: 8px; display: none; }
+        .forgot-link a { color: #5c6bc0; text-decoration: none; }
+        .forgot-link a:hover { text-decoration: underline; }
+        .btn-verify { background: #5c6bc0; color: white; }
+        .btn-verify:hover { background: #3f51b5; }
+        .btn-cancel { background: #f0f0f0; color: #555; margin-right: 8px; }
+        .btn-cancel:hover { background: #e0e0e0; }
+        .verified-badge { display: none; color: #2e7d32; font-size: 13px; font-weight: 500; margin-top: 6px; }
+        .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 6px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #newPasswordFields { display: none; }
+        #verifySection { display: block; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>Enterprise Asset Management</h2>
+    <div class="nav-right">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/profile">{{ username }}</a>
+        <a href="/logout">Logout</a>
+    </div>
+</div>
+
+<div class="content">
+
+    <div class="page-header">
+        <h1>My Profile</h1>
+    </div>
+    <p class="page-subtitle">Your account information and administrative metadata.</p>
+
+    <div class="profile-card">
+
+        <div class="profile-section">
+            <div class="section-title">Personal Information</div>
+
+            <div class="field-row">
+                <span class="field-label">First Name</span>
+                <span class="field-value">{{ first_name }}</span>
+            </div>
+            <div class="field-row">
+                <span class="field-label">Last Name</span>
+                <span class="field-value">{{ last_name }}</span>
+            </div>
+            <div class="field-row">
+                <span class="field-label">Email</span>
+                <span class="field-value">{{ email }}</span>
+            </div>
+            <div class="field-row">
+                <span class="field-label">Company Name</span>
+                <span class="field-value">{{ company_name }}</span>
+            </div>
+        </div>
+
+        <div class="profile-section">
+            <div class="section-title">Administrative Metadata</div>
+
+            <div class="field-row">
+                <span class="field-label">Company ID</span>
+                <span class="field-value">
+                    {% if company_id %}
+                        {{ company_id }}
+                    {% else %}
+                        <span class="badge-pending">Awaiting Admin Assignment</span>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="field-row">
+                <span class="field-label">Role</span>
+                <span class="field-value">
+                    {% if role %}
+                        {{ role }}
+                    {% else %}
+                        <span class="badge-pending">Awaiting Admin Assignment</span>
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+
+        <div class="profile-section">
+            <div class="section-title">Account Details</div>
+
+            <div class="field-row">
+                <span class="field-label">Member Since</span>
+                <span class="field-value">{{ created_at }}</span>
+            </div>
+        </div>
+
+        <div class="profile-section">
+            <div class="section-title">Change Password</div>
+
+            {% if success %}
+                <div class="alert-success">{{ success }}</div>
+            {% endif %}
+            <div id="passwordError" class="alert-error" style="display: none;"></div>
+
+            <!-- Step 1: Verify Current Password -->
+            <div id="verifySection">
+                <div class="form-group">
+                    <label>Current Password</label>
+                    <input
+                        type="password"
+                        id="currentPassword"
+                        placeholder="Enter current password"
+                    >
+                </div>
+                <div class="forgot-link" id="forgotLinkVerify">
+                    Forgot Password? <a href="/forgot-password">Click here to reset.</a>
+                </div>
+                <div style="margin-top: 16px;">
+                    <button
+                        type="button"
+                        id="verifyBtn"
+                        class="btn btn-primary"
+                        onclick="verifyCurrentPassword()"
+                    >Verify Password</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Set New Password (hidden by default) -->
+            <div id="newPasswordFields">
+                <div class="verified-badge" id="verifiedBadge">&#10003; Current password verified</div>
+                <form method="POST" action="/profile" id="newPasswordForm">
+                    <div class="form-group">
+                        <label>New Password</label>
+                        <input
+                            type="password"
+                            name="new_password"
+                            placeholder="Enter new password"
+                            required
+                        >
+                    </div>
+                    <div class="form-group">
+                        <label>Confirm New Password</label>
+                        <input
+                            type="password"
+                            name="confirm_password"
+                            placeholder="Confirm new password"
+                            required
+                        >
+                    </div>
+                    <div style="margin-top: 16px;">
+                        <button type="button" class="btn btn-cancel" onclick="cancelPasswordChange()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Update Password</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <a href="/dashboard" class="back-link">&larr; Back to Dashboard</a>
+
+</div>
+
+<script>
+function verifyCurrentPassword() {
+    var password = document.getElementById('currentPassword').value;
+    var errorDiv = document.getElementById('passwordError');
+    var forgotLink = document.getElementById('forgotLinkVerify');
+    var btn = document.getElementById('verifyBtn');
+
+    if (!password) {
+        errorDiv.textContent = 'Please enter your current password.';
+        errorDiv.style.display = 'block';
+        forgotLink.style.display = 'none';
+        return;
+    }
+
+    errorDiv.style.display = 'none';
+    forgotLink.style.display = 'none';
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Verifying...';
+
+    fetch('/profile/verify-current-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ current_password: password })
+    })
+    .then(function(res) { return res.json().then(function(d) { return { ok: res.ok, data: d }; }); })
+    .then(function(result) {
+        btn.disabled = false;
+        btn.innerHTML = 'Verify Password';
+
+        if (result.ok && result.data.status === 'success') {
+            document.getElementById('verifySection').style.display = 'none';
+            document.getElementById('newPasswordFields').style.display = 'block';
+            document.getElementById('verifiedBadge').style.display = 'block';
+            errorDiv.style.display = 'none';
+        } else {
+            errorDiv.textContent = result.data.message || 'Verification failed.';
+            errorDiv.style.display = 'block';
+            forgotLink.style.display = 'block';
+        }
+    })
+    .catch(function() {
+        btn.disabled = false;
+        btn.innerHTML = 'Verify Password';
+        errorDiv.textContent = 'Network error. Please try again.';
+        errorDiv.style.display = 'block';
+        forgotLink.style.display = 'none';
+    });
+}
+
+function cancelPasswordChange() {
+    document.getElementById('newPasswordFields').style.display = 'none';
+    document.getElementById('verifySection').style.display = 'block';
+    document.getElementById('verifiedBadge').style.display = 'none';
+    document.getElementById('passwordError').style.display = 'none';
+    document.getElementById('forgotLinkVerify').style.display = 'none';
+    document.getElementById('currentPassword').value = '';
+    document.getElementById('newPasswordForm').reset();
+}
+</script>
+
+</body>
+</html>
