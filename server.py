@@ -1,7 +1,6 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from werkzeug.security import generate_password_hash, check_password_hash
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session
 from flask_mail import Mail, Message
 import sqlite3
@@ -18,6 +17,13 @@ from collections import defaultdict
 from auth import authenticate_user, otp_service, email_service
 from auth.auth_settings import get_otp_expiry_minutes, get_resend_delay_seconds, get_max_resend_attempts
 from auth.local_auth import get_user_by_id
+from auth.ldap_auth import (
+    verify_user_credentials_with_ldap,
+    create_ldap_user,
+    update_ldap_password,
+    ldap_bind_as_user,
+    get_user_profile_by_email,
+)
 
 app = Flask(__name__)
 
@@ -460,12 +466,14 @@ def signup():
             if cursor.fetchone():
                 return render_template("signup.html", error="Email already registered.")
 
-            password_hash = generate_password_hash(password)
             now = datetime.now(timezone.utc)
-            # user_id=0 because user doesn't exist yet — OTP stored in pending_registrations
             otp = otp_service.generate_otp(0)
             otp_expiry = get_otp_expiry_minutes()
             otp_expires_at = now + timedelta(minutes=otp_expiry)
+
+            ldap_username = email.split("@")[0]
+            if not create_ldap_user(ldap_username, password, first_name, last_name, email):
+                return render_template("signup.html", error="Account creation failed. Please try again.")
 
             cursor.execute("""
                 INSERT INTO pending_registrations (
@@ -475,7 +483,7 @@ def signup():
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 first_name, last_name, company_name,
-                email, email, password_hash,
+                email, email, "ldap_managed",
                 otp, now.isoformat(), otp_expires_at.isoformat(), now.isoformat(),
             ))
             conn.commit()
@@ -561,10 +569,11 @@ def verify_email():
                 )
 
             created_at = datetime.now(ZoneInfo("Asia/Kolkata")).isoformat()
+
             cursor.execute("""
                 INSERT INTO users (first_name, last_name, company_name, email, username, password_hash, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (first_name, last_name, company_name, email, email, password_hash, created_at))
+            """, (first_name, last_name, company_name, email, email, "ldap_managed", created_at))
             new_user_id = cursor.lastrowid
 
             cursor.execute(
@@ -716,16 +725,20 @@ def profile():
                 conn = get_db()
                 try:
                     cursor = conn.cursor()
-                    new_hash = generate_password_hash(new_password)
-                    cursor.execute(
-                        "UPDATE users SET password_hash = ? WHERE id = ?",
-                        (new_hash, user_id),
-                    )
-                    conn.commit()
-                    success_msg = "Password updated successfully."
-                    logger.info("Password updated via profile for user_id=%s", user_id)
+                    cursor.execute("SELECT email FROM users WHERE id = ?", (user_id,))
+                    user_row = cursor.fetchone()
                 finally:
                     conn.close()
+
+                if user_row is None:
+                    error_msg = "User not found."
+                else:
+                    ldap_username = user_row[0].split("@")[0]
+                    if update_ldap_password(ldap_username, new_password):
+                        success_msg = "Password updated successfully."
+                        logger.info("Password updated via profile for user_id=%s", user_id)
+                    else:
+                        error_msg = "Failed to update password. Please try again."
 
     conn = get_db()
     try:
@@ -779,20 +792,22 @@ def verify_current_password():
     try:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT password_hash FROM users WHERE id = ?",
+            "SELECT email FROM users WHERE id = ?",
             (user_id,),
         )
         row = cursor.fetchone()
         if row is None:
             return jsonify({"status": "error", "message": "User not found."}), 404
 
-        if check_password_hash(row[0], current_password):
-            _password_reset_attempts.pop(verify_key, None)
-            return jsonify({"status": "success", "message": "Password verified."})
-        else:
-            return jsonify({"status": "error", "message": "Current password incorrect."})
+        user_email = row[0]
     finally:
         conn.close()
+
+    if ldap_bind_as_user(user_email, current_password):
+        _password_reset_attempts.pop(verify_key, None)
+        return jsonify({"status": "success", "message": "Password verified."})
+    else:
+        return jsonify({"status": "error", "message": "Current password incorrect."})
 
 
 # ─── PASSWORD RESET RATE LIMITER ──────────────────────────────
@@ -1070,17 +1085,19 @@ def reset_password(token):
                 token=token,
             )
 
-        password_hash = generate_password_hash(password)
+        ldap_username = user[0].split("@")[0]
+        if not update_ldap_password(ldap_username, password):
+            logger.error("LDAP password update failed for user_id=%s during reset", user_id)
+            return render_template(
+                "reset_password.html",
+                error="An unexpected error occurred. Please try again.",
+                masked_email=masked_email,
+                token=token,
+            )
 
         conn = get_db()
         try:
             cursor = conn.cursor()
-
-            cursor.execute(
-                "UPDATE users SET password_hash = ? WHERE id = ?",
-                (password_hash, user_id),
-            )
-            logger.info("Password hash updated for user_id=%s", user_id)
 
             cursor.execute(
                 "UPDATE password_reset_tokens SET used = 1 WHERE id = ?",
@@ -1189,12 +1206,12 @@ def delete_department(dept_id):
         cursor = conn.cursor()
 
         cursor.execute(
-            "SELECT id, password_hash FROM users WHERE id = ?",
+            "SELECT id, email FROM users WHERE id = ?",
             (session.get("user_id"),)
         )
         user = cursor.fetchone()
 
-        if not user or not check_password_hash(user[1], password):
+        if not user or not ldap_bind_as_user(user[1], password):
             return jsonify({"error": "Incorrect password."}), 403
 
         cursor.execute(
@@ -1526,12 +1543,12 @@ def delete_type_field(asset_type_id, field_id):
         cursor = conn.cursor()
 
         cursor.execute(
-            "SELECT id, password_hash FROM users WHERE id = ?",
+            "SELECT id, email FROM users WHERE id = ?",
             (session.get("user_id"),)
         )
         user = cursor.fetchone()
 
-        if not user or not check_password_hash(user[1], password):
+        if not user or not ldap_bind_as_user(user[1], password):
             return redirect(
                 url_for("asset_type", asset_type_id=asset_type_id)
             )
@@ -1562,12 +1579,12 @@ def delete_asset_type(asset_type_id):
         cursor = conn.cursor()
 
         cursor.execute(
-            "SELECT id, password_hash FROM users WHERE id = ?",
+            "SELECT id, email FROM users WHERE id = ?",
             (session.get("user_id"),)
         )
         user = cursor.fetchone()
 
-        if not user or not check_password_hash(user[1], password):
+        if not user or not ldap_bind_as_user(user[1], password):
             return redirect(
                 url_for("asset_type", asset_type_id=asset_type_id)
             )
@@ -1785,12 +1802,12 @@ def delete_asset(asset_id):
         cursor = conn.cursor()
 
         cursor.execute(
-            "SELECT id, password_hash FROM users WHERE id = ?",
+            "SELECT id, email FROM users WHERE id = ?",
             (session.get("user_id"),)
         )
         user = cursor.fetchone()
 
-        if not user or not check_password_hash(user[1], password):
+        if not user or not ldap_bind_as_user(user[1], password):
             return redirect(url_for("asset_detail", asset_id=asset_id))
 
         cursor.execute(

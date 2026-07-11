@@ -45,13 +45,12 @@ def _authenticate_provider(email: str, password: str) -> AuthResult:
     """
     provider = auth_settings.get_auth_provider()
 
+    if provider == "LDAP":
+        from auth.ldap_auth import authenticate_ldap
+        return authenticate_ldap(email, password)
+
     if provider == "LOCAL":
         return authenticate_local(email, password)
-
-    # Future providers are added here:
-    # elif provider == "LDAP":
-    #     from auth.ldap_auth import authenticate_ldap
-    #     return authenticate_ldap(email, password)
 
     return AuthResult(
         status="failed",
