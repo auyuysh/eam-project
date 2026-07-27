@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Closure — Incident Management</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Poppins', sans-serif; background: #f5f6fa; color: #333; }
+        .navbar { background: #1a1a2e; color: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; height: 56px; }
+        .navbar h2 { font-size: 18px; }
+        .nav-right { display: flex; gap: 16px; align-items: center; font-size: 14px; color: #aaa; }
+        .nav-right a { color: #aaa; text-decoration: none; }
+        .nav-right a:hover { color: white; }
+        .main-layout { display: flex; min-height: calc(100vh - 56px); }
+        .sidebar { width: 240px; background: #1a1a2e; color: white; display: flex; flex-direction: column; flex-shrink: 0; border-top: 1px solid #2e2e4f; }
+        .sidebar-menu { list-style: none; padding: 20px 0; margin: 0; }
+        .menu-section { padding: 12px 24px 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; }
+        .menu-item { display: block; padding: 10px 24px; color: #d1d5db; text-decoration: none; font-size: 14px; transition: all 0.2s ease; cursor: pointer; }
+        .menu-item:hover, .menu-item.active { background: rgba(255,255,255,0.05); color: white; }
+        .menu-has-submenu { position: relative; }
+        .submenu-toggle { display: flex; justify-content: space-between; align-items: center; padding: 10px 24px; color: #d1d5db; font-size: 14px; cursor: pointer; transition: all 0.2s ease; }
+        .submenu-toggle:hover { background: rgba(255,255,255,0.05); color: white; }
+        .submenu { list-style: none; padding-left: 16px; display: none; }
+        .submenu.open { display: block; }
+        .submenu .menu-item { padding: 8px 24px; font-size: 13px; }
+        .arrow { font-size: 10px; transition: transform 0.2s; }
+        .content-area { flex-grow: 1; padding: 32px; background: #f5f6fa; overflow-y: auto; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .page-header h1 { font-size: 24px; }
+        .page-subtitle { color: #888; font-size: 14px; margin-bottom: 24px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; text-decoration: none; display: inline-block; transition: all 0.15s; }
+        .btn-primary { background: #5c6bc0; color: white; }
+        .btn-primary:hover { background: #3f51b5; }
+        .btn-cancel { background: #f0f0f0; color: #555; }
+        .btn-cancel:hover { background: #e0e0e0; }
+        .flash-messages { margin-bottom: 20px; }
+        .flash { padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 10px; }
+        .flash-success { background: #e8f5e9; color: #2e7d32; }
+        .flash-danger { background: #ffebee; color: #c62828; }
+        .status-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: white; white-space: nowrap; }
+        .incident-header { background: white; border-radius: 12px; padding: 24px 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+        .incident-header-left h2 { font-size: 18px; color: #1a1a2e; margin-bottom: 4px; }
+        .incident-header-left p { font-size: 13px; color: #888; }
+        .section-card { background: white; border-radius: 12px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px; }
+        .section-title { font-size: 16px; font-weight: 600; color: #1a1a2e; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #eee; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #555; }
+        .form-group input, .form-group textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; box-sizing: border-box; font-family: inherit; }
+        .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #5c6bc0; }
+        .form-group textarea { resize: vertical; min-height: 100px; }
+        .form-group .checkbox-group { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+        .form-group .checkbox-group input[type="checkbox"] { width: auto; }
+        .form-group .checkbox-group label { margin-bottom: 0; font-size: 14px; color: #333; }
+        .form-hint { font-size: 12px; color: #888; margin-top: 4px; }
+        .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; padding-top: 16px; border-top: 1px solid #eee; }
+        .timeline { position: relative; padding-left: 24px; }
+        .timeline::before { content: ''; position: absolute; left: 7px; top: 8px; bottom: 8px; width: 2px; background: #e0e0e0; }
+        .timeline-entry { position: relative; padding: 10px 0 10px 16px; }
+        .timeline-entry::before { content: ''; position: absolute; left: -20px; top: 16px; width: 10px; height: 10px; border-radius: 50%; background: #5c6bc0; border: 2px solid white; box-shadow: 0 0 0 2px #5c6bc0; z-index: 1; }
+        .timeline-entry .tl-step { font-weight: 600; font-size: 14px; color: #1a1a2e; }
+        .timeline-entry .tl-action { font-size: 13px; color: #555; margin: 4px 0; }
+        .timeline-entry .tl-change { font-size: 12px; color: #888; background: #f5f6fa; padding: 6px 10px; border-radius: 6px; margin: 4px 0; display: inline-block; }
+        .timeline-entry .tl-change .old { color: #c62828; text-decoration: line-through; }
+        .timeline-entry .tl-change .arrow-icon { margin: 0 6px; color: #999; }
+        .timeline-entry .tl-change .new { color: #2e7d32; }
+        .timeline-entry .tl-meta { font-size: 12px; color: #aaa; margin-top: 4px; }
+        .back-link { display: inline-block; margin-top: 8px; color: #5c6bc0; text-decoration: none; font-size: 14px; font-weight: 500; }
+        .back-link:hover { text-decoration: underline; }
+        .empty-timeline { text-align: center; color: #aaa; font-size: 14px; padding: 20px 0; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>Enterprise Asset Management</h2>
+    <div class="nav-right">
+        <a href="/profile">{{ user.first_name }}</a>
+        <a href="/logout">Logout</a>
+    </div>
+</div>
+
+<div class="main-layout">
+    <div class="sidebar">
+        <ul class="sidebar-menu">
+            <li><a href="/dashboard" class="menu-item">Dashboard</a></li>
+            <li><a href="/profile" class="menu-item">My Profile</a></li>
+            {% if is_super_admin or 'users.view' in user_permissions or 'roles.view' in user_permissions %}
+            <li class="menu-section">Admin</li>
+            <li class="menu-has-submenu">
+                <div class="submenu-toggle" onclick="toggleSubmenu(this)">
+                    <span>Users &amp; Roles</span>
+                    <span class="arrow">&#9662;</span>
+                </div>
+                <ul class="submenu">
+                    {% if is_super_admin or 'users.view' in user_permissions %}
+                    <li><a href="/admin/users" class="menu-item">Users</a></li>
+                    {% endif %}
+                    {% if is_super_admin or 'roles.view' in user_permissions %}
+                    <li><a href="/admin/roles" class="menu-item">Roles</a></li>
+                    {% endif %}
+                </ul>
+            </li>
+            {% endif %}
+            <li class="menu-section">Service Desk</li>
+            {% include 'partials/navbar.html' %}
+            <li class="menu-section">Incident Management</li>
+            {% include 'partials/incidents_navbar.html' %}
+            {% if is_super_admin or 'assets.view' in user_permissions %}
+            <li><a href="/admin/reports" class="menu-item">Reports</a></li>
+            {% endif %}
+            {% if is_super_admin %}
+            <li><a href="/admin/ldap" class="menu-item">LDAP Config</a></li>
+            <li><a href="/admin/email" class="menu-item">Email Config</a></li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <div class="content-area">
+        <div class="page-header"><h1>Closure — Incident Management</h1></div>
+        <p class="page-subtitle">Close and document the resolution for this incident.</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                <div class="flash flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="incident-header">
+            <div class="incident-header-left">
+                <h2>{{ inc.incident_code }} &mdash; {{ inc.title }}</h2>
+                <p>Location: {{ inc.location or 'N/A' }} &nbsp;|&nbsp; Priority: {{ inc.priority }} &nbsp;|&nbsp; Severity: {{ inc.severity }}</p>
+            </div>
+            <span class="status-badge" style="background: {{ status_colors.get(inc.status, '#5c6bc0') }};">{{ inc.status | replace('_', ' ') | title }}</span>
+        </div>
+
+        <div class="section-card">
+            <div class="section-title">Workflow History</div>
+            {% if audit_logs %}
+            <div class="timeline">
+                {% for log in audit_logs %}
+                <div class="timeline-entry">
+                    <div class="tl-step">{{ log.step_name }}</div>
+                    <div class="tl-action">{{ log.action }}</div>
+                    {% if log.old_value or log.new_value %}
+                    <div class="tl-change">
+                        <span class="old">{{ log.old_value or '—' }}</span>
+                        <span class="arrow-icon">&#8594;</span>
+                        <span class="new">{{ log.new_value or '—' }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="tl-meta">{{ log.performed_by }} &nbsp;&middot;&nbsp; {{ log.timestamp }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-timeline">No workflow history available for this incident.</div>
+            {% endif %}
+        </div>
+
+        <div class="section-card">
+            <div class="section-title">Closure Details</div>
+            <form method="POST" action="">
+                <div class="form-group">
+                    <label>Resolution Summary *</label>
+                    <textarea name="resolution_summary" required placeholder="Describe how the incident was resolved...">{{ existing.resolution_summary if existing else '' }}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Final Root Cause</label>
+                    <input type="text" name="final_root_cause" value="{{ existing.final_root_cause if existing else '' }}" placeholder="Identified root cause of the incident">
+                </div>
+
+                <div class="form-group">
+                    <label>Total Repair Cost</label>
+                    <input type="number" name="total_repair_cost" step="0.01" min="0" value="{{ existing.total_repair_cost if existing and existing.total_repair_cost else (suggested_cost if suggested_cost else '') }}" placeholder="0.00">
+                    {% if suggested_cost and (not existing or not existing.total_repair_cost) %}
+                    <div class="form-hint">Suggested cost from corrective action: {{ suggested_cost }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label>Preventive Action Required</label>
+                    <div class="checkbox-group">
+                        <input type="checkbox" name="preventive_action_required" id="preventive_action_required" value="1" {{ 'checked' if existing and existing.preventive_action_required }}>
+                        <label for="preventive_action_required">This incident requires preventive action to avoid recurrence</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Preventive Recommendations</label>
+                    <textarea name="preventive_recommendations" placeholder="Describe recommended preventive actions...">{{ existing.preventive_recommendations if existing else '' }}</textarea>
+                </div>
+
+                <div class="form-actions">
+                    <a href="/incidents/{{ inc.id }}" class="btn btn-cancel">Back to Incident</a>
+                    <button type="submit" class="btn btn-primary">Save Closure Details</button>
+                </div>
+            </form>
+        </div>
+
+        <a href="/incidents/{{ inc.id }}" class="back-link">&larr; Back to Incident Detail</a>
+    </div>
+</div>
+
+<script>
+    function toggleSubmenu(el) {
+        var submenu = el.nextElementSibling;
+        var arrow = el.querySelector('.arrow');
+        submenu.classList.toggle('open');
+        arrow.style.transform = submenu.classList.contains('open') ? 'rotate(180deg)' : '';
+    }
+
+    document.querySelectorAll('.submenu-toggle').forEach(function(toggle) {
+        if (toggle.textContent.trim().includes('Incident Management')) {
+            var submenu = toggle.nextElementSibling;
+            if (submenu) {
+                submenu.classList.add('open');
+                var arrow = toggle.querySelector('.arrow');
+                if (arrow) arrow.style.transform = 'rotate(180deg)';
+            }
+        }
+    });
+</script>
+
+</body>
+</html>

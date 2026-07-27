@@ -184,13 +184,16 @@
                 <div class="displayed-value" id="value-display-{{ field[0] }}">
                     {{ field[3] if field[3] else '—' }}
                 </div>
+                {% if is_super_admin or 'assets.edit' in user_permissions %}
                 <button
                     class="edit-btn"
                     onclick="showEditMode({{ field[0] }})"
                 >Edit</button>
+                {% endif %}
             </div>
 
             <!-- Edit mode (shown when no value or user clicks Edit) -->
+            {% if is_super_admin or 'assets.edit' in user_permissions %}
             <div class="type-field-edit {% if field[3] %}{% else %}active{% endif %}"
                  id="edit-{{ field[0] }}">
                 <div class="field-label">
@@ -231,6 +234,7 @@
                     {% endif %}
                 </form>
             </div>
+            {% endif %}
 
         </div>
         {% endfor %}
@@ -241,9 +245,11 @@
     <div class="section">
         <div class="section-header">
             <div class="section-title">Custom Fields</div>
+            {% if is_super_admin or 'assets.create' in user_permissions %}
             <button class="btn btn-primary" onclick="openAddCustomFieldModal()">
                 + Create Custom Field
             </button>
+            {% endif %}
         </div>
 
         {% if custom_fields %}
@@ -258,6 +264,7 @@
                 <div class="field-value">
                     {{ field[3] if field[3] else '—' }}
                 </div>
+                {% if is_super_admin or 'assets.delete' in user_permissions %}
                 <form
                     method="POST"
                     action="/asset/{{ asset[0] }}/delete-custom-field/{{ field[0] }}"
@@ -267,6 +274,7 @@
                         Delete
                     </button>
                 </form>
+                {% endif %}
             </div>
             {% endfor %}
         {% else %}
@@ -277,6 +285,7 @@
     </div>
 
     <!-- Delete Asset Section -->
+    {% if is_super_admin or 'assets.delete' in user_permissions %}
     <div class="delete-asset-section">
         <div class="delete-asset-title">Delete Asset</div>
         <div class="delete-asset-desc">
@@ -287,9 +296,11 @@
             Delete This Asset
         </button>
     </div>
+    {% endif %}
 
 </div>
 
+{% if is_super_admin or 'assets.create' in user_permissions %}
 <!-- Add Custom Field Modal -->
 <div class="modal-overlay" id="addCustomFieldModal">
     <div class="modal">
@@ -321,7 +332,9 @@
         </form>
     </div>
 </div>
+{% endif %}
 
+{% if is_super_admin or 'assets.delete' in user_permissions %}
 <!-- Delete Asset Modal -->
 <div class="modal-overlay" id="deleteAssetModal">
     <div class="modal">
@@ -347,6 +360,7 @@
         </form>
     </div>
 </div>
+{% endif %}
 
 <script>
     // ─── Modal controls ───────────────────────────────────────
@@ -448,7 +462,9 @@
 
     // ─── Add custom field ─────────────────────────────────────
 
-    document.getElementById('addCustomFieldForm')
+    var addCustomFieldFormEl = document.getElementById('addCustomFieldForm');
+    if (addCustomFieldFormEl) {
+    addCustomFieldFormEl
         .addEventListener('submit', function(e) {
             e.preventDefault();
             const btn = document.getElementById('addCustomFieldBtn');
@@ -463,6 +479,7 @@
                     }
                 });
         });
+    }
 
     // ─── Delete custom field — event delegation ───────────────
 
@@ -478,11 +495,14 @@
 
     // ─── Delete asset — normal submit (navigates away) ────────
 
-    document.getElementById('deleteAssetForm')
+    var deleteAssetFormEl = document.getElementById('deleteAssetForm');
+    if (deleteAssetFormEl) {
+    deleteAssetFormEl
         .addEventListener('submit', function() {
             const btn = document.getElementById('deleteAssetBtn');
             if (btn) { btn.disabled = true; btn.textContent = 'Deleting...'; }
         });
+    }
 </script>
 
 </body>

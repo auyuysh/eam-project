@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Email (SMTP) Configuration — EAM</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Poppins', sans-serif; background: #f5f6fa; color: #333; }
+        .navbar { background: #1a1a2e; color: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; height: 56px; }
+        .navbar h2 { font-size: 18px; }
+        .nav-right { display: flex; gap: 16px; align-items: center; font-size: 14px; color: #aaa; }
+        .nav-right a { color: #aaa; text-decoration: none; }
+        .nav-right a:hover { color: white; }
+        .main-layout { display: flex; min-height: calc(100vh - 56px); }
+        .sidebar { width: 240px; background: #1a1a2e; color: white; display: flex; flex-direction: column; flex-shrink: 0; border-top: 1px solid #2e2e4f; }
+        .sidebar-menu { list-style: none; padding: 20px 0; margin: 0; }
+        .menu-section { padding: 12px 24px 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; }
+        .menu-item { display: block; padding: 10px 24px; color: #d1d5db; text-decoration: none; font-size: 14px; transition: all 0.2s ease; cursor: pointer; }
+        .menu-item:hover, .menu-item.active { background: rgba(255,255,255,0.05); color: white; }
+        .menu-has-submenu { position: relative; }
+        .submenu-toggle { display: flex; justify-content: space-between; align-items: center; padding: 10px 24px; color: #d1d5db; font-size: 14px; cursor: pointer; transition: all 0.2s ease; }
+        .submenu-toggle:hover { background: rgba(255,255,255,0.05); color: white; }
+        .submenu { list-style: none; padding-left: 16px; display: none; }
+        .submenu.open { display: block; }
+        .submenu .menu-item { padding: 8px 24px; font-size: 13px; }
+        .arrow { font-size: 10px; transition: transform 0.2s; }
+        .content-area { flex-grow: 1; padding: 32px; background: #f5f6fa; overflow-y: auto; }
+        .page-header { margin-bottom: 8px; }
+        .page-header h1 { font-size: 24px; }
+        .page-subtitle { color: #888; font-size: 14px; margin-bottom: 32px; }
+
+        .config-card { background: white; border-radius: 12px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px; }
+        .config-card h2 { font-size: 16px; font-weight: 600; color: #1a1a2e; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #eee; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group.full-width { grid-column: 1 / -1; }
+        .form-group label { font-size: 12px; font-weight: 600; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.3px; }
+        .form-group input { padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: inherit; transition: border-color 0.2s; }
+        .form-group input:focus { outline: none; border-color: #5c6bc0; }
+        .form-group input::placeholder { color: #bbb; }
+        .form-group code { font-size: 11px; color: #888; margin-top: 4px; }
+
+        .btn { padding: 10px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; text-decoration: none; display: inline-block; font-family: inherit; transition: all 0.2s; }
+        .btn-primary { background: #5c6bc0; color: white; }
+        .btn-primary:hover { background: #3f51b5; }
+        .btn-primary:disabled { background: #9fa8da; cursor: not-allowed; }
+        .btn-success { background: #2e7d32; color: white; }
+        .btn-success:hover { background: #1b5e20; }
+        .btn-success:disabled { background: #81c784; cursor: not-allowed; }
+        .btn-secondary { background: #eaeaea; color: #333; }
+        .btn-secondary:hover { background: #dcdcdc; }
+
+        .actions-bar { display: flex; gap: 12px; align-items: center; margin-top: 24px; padding-top: 20px; border-top: 1px solid #eee; }
+
+        .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 6px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .notification-box { display: none; padding: 16px 20px; border-radius: 8px; font-size: 14px; margin-top: 20px; line-height: 1.5; }
+        .notification-box.visible { display: block; }
+        .notification-failed { background: #ffebee; color: #c62828; border-left: 4px solid #c62828; }
+        .notification-fetching { background: #e3f2fd; color: #1565c0; border-left: 4px solid #1565c0; }
+        .notification-success { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #2e7d32; }
+        .notification-saved { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #2e7d32; }
+        .notification-box strong { font-weight: 600; }
+
+        .test-row { display: flex; gap: 12px; align-items: flex-end; margin-top: 16px; }
+        .test-row .form-group { flex: 1; }
+        .test-status { font-size: 13px; color: #888; margin-top: 8px; min-height: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>Enterprise Asset Management</h2>
+    <div class="nav-right">
+        <a href="/profile">{{ username }}</a>
+        <a href="/logout">Logout</a>
+    </div>
+</div>
+
+<div class="main-layout">
+    <div class="sidebar">
+        <ul class="sidebar-menu">
+            <li><a href="/dashboard" class="menu-item">Dashboard</a></li>
+            <li><a href="/profile" class="menu-item">My Profile</a></li>
+
+            {% if is_super_admin or 'users.view' in user_permissions or 'roles.view' in user_permissions %}
+            <li class="menu-section">Admin</li>
+            <li class="menu-has-submenu">
+                <div class="submenu-toggle" onclick="toggleSubmenu(this)">
+                    <span>Users & Roles</span>
+                    <span class="arrow">&#9662;</span>
+                </div>
+                <ul class="submenu">
+                    {% if is_super_admin or 'users.view' in user_permissions %}
+                    <li><a href="/admin/users" class="menu-item">Users</a></li>
+                    {% endif %}
+                    {% if is_super_admin or 'roles.view' in user_permissions %}
+                    <li><a href="/admin/roles" class="menu-item">Roles</a></li>
+                    {% endif %}
+                </ul>
+            </li>
+            {% endif %}
+            <li class="menu-section">Service Desk</li>
+            {% include 'partials/navbar.html' %}
+            <li class="menu-section">Incident Management</li>
+            {% include 'partials/incidents_navbar.html' %}
+            {% if is_super_admin or 'assets.view' in user_permissions %}
+            <li><a href="/admin/reports" class="menu-item">Reports</a></li>
+            {% endif %}
+            {% if is_super_admin %}
+            <li><a href="/admin/ldap" class="menu-item">LDAP Config</a></li>
+            <li><a href="/admin/email" class="menu-item active">Email Config</a></li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <div class="content-area">
+        <div class="page-header">
+            <h1>Email (SMTP) Configuration</h1>
+        </div>
+        <p class="page-subtitle">Configure outgoing email server parameters used for OTPs, notifications, and system alerts.</p>
+
+        <div class="config-card">
+            <h2>SMTP Server Parameters</h2>
+            <form id="smtpConfigForm" onsubmit="return false;">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="mail_server">SMTP Server</label>
+                        <input type="text" id="mail_server" name="mail_server" placeholder="smtp.gmail.com" value="{{ config.mail_server }}" required>
+                        <code>e.g. smtp.gmail.com, smtp.office365.com</code>
+                    </div>
+                    <div class="form-group">
+                        <label for="mail_port">SMTP Port</label>
+                        <input type="text" id="mail_port" name="mail_port" placeholder="587" value="{{ config.mail_port }}" required>
+                        <code>Common: 587 (TLS) or 465 (SSL)</code>
+                    </div>
+                    <div class="form-group">
+                        <label for="mail_username">SMTP Username</label>
+                        <input type="text" id="mail_username" name="mail_username" placeholder="your-email@gmail.com" value="{{ config.mail_username }}" required>
+                        <code>Usually your full email address</code>
+                    </div>
+                    <div class="form-group">
+                        <label for="mail_password">SMTP Password</label>
+                        <input type="password" id="mail_password" name="mail_password" placeholder="{% if config.mail_password %}&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;{% else %}Enter SMTP password{% endif %}">
+                        <code>App password or account password</code>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="mail_default_sender">Default Sender Address</label>
+                        <input type="email" id="mail_default_sender" name="mail_default_sender" placeholder="noreply@yourdomain.com" value="{{ config.mail_default_sender }}" required>
+                        <code>From address shown on all outgoing emails</code>
+                    </div>
+                </div>
+
+                <div class="actions-bar">
+                    <button type="button" class="btn btn-success" id="saveConfigBtn" onclick="saveConfig()">
+                        Save Configuration
+                    </button>
+                    <span class="test-status" id="saveStatus"></span>
+                </div>
+            </form>
+        </div>
+
+        <div class="config-card">
+            <h2>Send Test Email</h2>
+            <p style="font-size:13px; color:#666; margin-bottom:16px;">Verify your SMTP configuration by sending a test message. Unsaved changes will not be used.</p>
+            <div class="test-row">
+                <div class="form-group">
+                    <label for="test_recipient">Recipient Email</label>
+                    <input type="email" id="test_recipient" placeholder="test@yourdomain.com">
+                </div>
+                <button type="button" class="btn btn-primary" id="testEmailBtn" onclick="testEmail()">
+                    Send Test Email
+                </button>
+            </div>
+            <span class="test-status" id="testStatus"></span>
+        </div>
+
+        <!-- Notification boxes -->
+        <div class="notification-box notification-saved" id="stateSaved">
+            <strong>Configuration Saved.</strong> SMTP settings have been persisted to the database.
+        </div>
+
+        <div class="notification-box notification-success" id="stateTestSuccess">
+            <strong>Test email sent successfully!</strong> Check the recipient inbox.
+        </div>
+
+        <div class="notification-box notification-fetching" id="stateSaving">
+            <strong>Saving configuration...</strong> Please wait.
+        </div>
+
+        <div class="notification-box notification-fetching" id="stateTesting">
+            <strong>Sending test email...</strong> Please wait.
+        </div>
+
+        <div class="notification-box notification-failed" id="stateFailed">
+            <strong>Error:</strong> <span id="failedError"></span>
+        </div>
+
+    </div>
+</div>
+
+<script>
+function toggleSubmenu(el) {
+    var submenu = el.nextElementSibling;
+    submenu.classList.toggle('open');
+    var arrow = el.querySelector('.arrow');
+    if (submenu.classList.contains('open')) {
+        arrow.innerHTML = '&#9652;';
+    } else {
+        arrow.innerHTML = '&#9662;';
+    }
+}
+
+function hideAllStates() {
+    document.getElementById('stateSaved').classList.remove('visible');
+    document.getElementById('stateTestSuccess').classList.remove('visible');
+    document.getElementById('stateSaving').classList.remove('visible');
+    document.getElementById('stateTesting').classList.remove('visible');
+    document.getElementById('stateFailed').classList.remove('visible');
+}
+
+function saveConfig() {
+    var btn = document.getElementById('saveConfigBtn');
+    var payload = {
+        mail_server:       document.getElementById('mail_server').value.trim(),
+        mail_port:         document.getElementById('mail_port').value.trim(),
+        mail_username:     document.getElementById('mail_username').value.trim(),
+        mail_password:     document.getElementById('mail_password').value,
+        mail_default_sender: document.getElementById('mail_default_sender').value.trim()
+    };
+
+    if (!payload.mail_server || !payload.mail_username || !payload.mail_default_sender) {
+        alert('SMTP Server, Username, and Default Sender are required.');
+        return;
+    }
+
+    hideAllStates();
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Saving...';
+    document.getElementById('stateSaving').classList.add('visible');
+
+    fetch('/admin/email/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(function(res) { return res.json().then(function(d) { return { ok: res.ok, data: d }; }); })
+    .then(function(result) {
+        btn.disabled = false;
+        btn.innerHTML = 'Save Configuration';
+        document.getElementById('stateSaving').classList.remove('visible');
+        if (result.ok) {
+            document.getElementById('stateSaved').classList.add('visible');
+            document.getElementById('mail_password').value = '';
+            document.getElementById('mail_password').placeholder = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022';
+        } else {
+            document.getElementById('failedError').textContent = result.data.error || 'Failed to save.';
+            document.getElementById('stateFailed').classList.add('visible');
+        }
+    })
+    .catch(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = 'Save Configuration';
+        document.getElementById('stateSaving').classList.remove('visible');
+        document.getElementById('failedError').textContent = 'Network error: ' + err.message;
+        document.getElementById('stateFailed').classList.add('visible');
+    });
+}
+
+function testEmail() {
+    var btn = document.getElementById('testEmailBtn');
+    var recipient = document.getElementById('test_recipient').value.trim();
+
+    if (!recipient) {
+        alert('Please enter a recipient email address.');
+        return;
+    }
+
+    hideAllStates();
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Sending...';
+    document.getElementById('stateTesting').classList.add('visible');
+
+    var formData = new FormData();
+    formData.append('recipient', recipient);
+
+    fetch('/admin/email/test', {
+        method: 'POST',
+        body: formData
+    })
+    .then(function(res) { return res.json().then(function(d) { return { ok: res.ok, data: d }; }); })
+    .then(function(result) {
+        btn.disabled = false;
+        btn.innerHTML = 'Send Test Email';
+        document.getElementById('stateTesting').classList.remove('visible');
+        if (result.ok) {
+            document.getElementById('stateTestSuccess').classList.add('visible');
+        } else {
+            document.getElementById('failedError').textContent = result.data.error || 'Failed to send test email.';
+            document.getElementById('stateFailed').classList.add('visible');
+        }
+    })
+    .catch(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = 'Send Test Email';
+        document.getElementById('stateTesting').classList.remove('visible');
+        document.getElementById('failedError').textContent = 'Network error: ' + err.message;
+        document.getElementById('stateFailed').classList.add('visible');
+    });
+}
+</script>
+
+</body>
+</html>

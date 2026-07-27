@@ -7,12 +7,25 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Poppins', sans-serif; background: #f5f6fa; color: #333; }
-        .navbar { background: #1a1a2e; color: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; }
+        .navbar { background: #1a1a2e; color: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; height: 56px; }
         .navbar h2 { font-size: 18px; }
         .nav-right { display: flex; gap: 16px; align-items: center; font-size: 14px; color: #aaa; }
         .nav-right a { color: #aaa; text-decoration: none; }
         .nav-right a:hover { color: white; }
-        .content { padding: 32px; max-width: 720px; }
+        .main-layout { display: flex; min-height: calc(100vh - 56px); }
+        .sidebar { width: 240px; background: #1a1a2e; color: white; display: flex; flex-direction: column; flex-shrink: 0; border-top: 1px solid #2e2e4f; }
+        .sidebar-menu { list-style: none; padding: 20px 0; margin: 0; }
+        .menu-section { padding: 12px 24px 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; }
+        .menu-item { display: block; padding: 10px 24px; color: #d1d5db; text-decoration: none; font-size: 14px; transition: all 0.2s ease; cursor: pointer; }
+        .menu-item:hover, .menu-item.active { background: rgba(255,255,255,0.05); color: white; }
+        .menu-has-submenu { position: relative; }
+        .submenu-toggle { display: flex; justify-content: space-between; align-items: center; padding: 10px 24px; color: #d1d5db; font-size: 14px; cursor: pointer; transition: all 0.2s ease; }
+        .submenu-toggle:hover { background: rgba(255,255,255,0.05); color: white; }
+        .submenu { list-style: none; padding-left: 16px; display: none; }
+        .submenu.open { display: block; }
+        .submenu .menu-item { padding: 8px 24px; font-size: 13px; }
+        .arrow { font-size: 10px; transition: transform 0.2s; }
+        .content-area { flex-grow: 1; padding: 32px; background: #f5f6fa; overflow-y: auto; max-width: 720px; }
         .page-header { margin-bottom: 8px; }
         .page-header h1 { font-size: 24px; }
         .page-subtitle { color: #888; font-size: 14px; margin-bottom: 32px; }
@@ -54,13 +67,48 @@
 <div class="navbar">
     <h2>Enterprise Asset Management</h2>
     <div class="nav-right">
-        <a href="/dashboard">Dashboard</a>
         <a href="/profile">{{ username }}</a>
         <a href="/logout">Logout</a>
     </div>
 </div>
 
-<div class="content">
+<div class="main-layout">
+    <div class="sidebar">
+        <ul class="sidebar-menu">
+            <li><a href="/dashboard" class="menu-item">Dashboard</a></li>
+            <li><a href="/profile" class="menu-item active">My Profile</a></li>
+            {% if is_super_admin or 'users.view' in user_permissions or 'roles.view' in user_permissions %}
+            <li class="menu-section">Admin</li>
+            <li class="menu-has-submenu">
+                <div class="submenu-toggle" onclick="toggleSubmenu(this)">
+                    <span>Users &amp; Roles</span>
+                    <span class="arrow">&#9662;</span>
+                </div>
+                <ul class="submenu">
+                    {% if is_super_admin or 'users.view' in user_permissions %}
+                    <li><a href="/admin/users" class="menu-item">Users</a></li>
+                    {% endif %}
+                    {% if is_super_admin or 'roles.view' in user_permissions %}
+                    <li><a href="/admin/roles" class="menu-item">Roles</a></li>
+                    {% endif %}
+                </ul>
+            </li>
+            {% endif %}
+            <li class="menu-section">Service Desk</li>
+            {% include 'partials/navbar.html' %}
+            <li class="menu-section">Incident Management</li>
+            {% include 'partials/incidents_navbar.html' %}
+            {% if is_super_admin or 'assets.view' in user_permissions %}
+            <li><a href="/admin/reports" class="menu-item">Reports</a></li>
+            {% endif %}
+            {% if is_super_admin %}
+            <li><a href="/admin/ldap" class="menu-item">LDAP Config</a></li>
+            <li><a href="/admin/email" class="menu-item">Email Config</a></li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <div class="content-area">
 
     <div class="page-header">
         <h1>My Profile</h1>
@@ -83,10 +131,6 @@
             <div class="field-row">
                 <span class="field-label">Email</span>
                 <span class="field-value">{{ email }}</span>
-            </div>
-            <div class="field-row">
-                <span class="field-label">Company Name</span>
-                <span class="field-value">{{ company_name }}</span>
             </div>
         </div>
 
@@ -122,6 +166,49 @@
                 <span class="field-label">Member Since</span>
                 <span class="field-value">{{ created_at }}</span>
             </div>
+        </div>
+
+        <div class="profile-section">
+            <div class="section-title">Your Assigned Equipment</div>
+
+            {% if assigned_asset %}
+                <div class="field-row">
+                    <span class="field-label">Asset Tag</span>
+                    <span class="field-value">{{ assigned_asset[0] }}</span>
+                </div>
+                <div class="field-row">
+                    <span class="field-label">Asset Name</span>
+                    <span class="field-value">{{ assigned_asset[1] }}</span>
+                </div>
+                <div class="field-row">
+                    <span class="field-label">Serial Number</span>
+                    <span class="field-value">{{ assigned_asset[2] }}</span>
+                </div>
+                <div class="field-row">
+                    <span class="field-label">Asset Type</span>
+                    <span class="field-value">{{ assigned_asset[6] }}</span>
+                </div>
+                <div class="field-row">
+                    <span class="field-label">Department</span>
+                    <span class="field-value">{{ assigned_asset[7] }}</span>
+                </div>
+                <div class="field-row">
+                    <span class="field-label">Location</span>
+                    <span class="field-value">{{ assigned_asset[3] if assigned_asset[3] else 'N/A' }}</span>
+                </div>
+                <div class="field-row">
+                    <span class="field-label">Warranty Period</span>
+                    <span class="field-value">
+                        {% if assigned_asset[4] and assigned_asset[5] %}
+                            {{ assigned_asset[4] }} &mdash; {{ assigned_asset[5] }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </span>
+                </div>
+            {% else %}
+                <p style="color: #888; font-size: 14px; padding: 4px 0;">No equipment currently assigned to your account.</p>
+            {% endif %}
         </div>
 
         <div class="profile-section">
@@ -189,7 +276,8 @@
 
     <a href="/dashboard" class="back-link">&larr; Back to Dashboard</a>
 
-</div>
+    </div><!-- /content-area -->
+</div><!-- /main-layout -->
 
 <script>
 function verifyCurrentPassword() {
@@ -248,6 +336,16 @@ function cancelPasswordChange() {
     document.getElementById('forgotLinkVerify').style.display = 'none';
     document.getElementById('currentPassword').value = '';
     document.getElementById('newPasswordForm').reset();
+}
+function toggleSubmenu(el) {
+    const submenu = el.nextElementSibling;
+    submenu.classList.toggle('open');
+    const arrow = el.querySelector('.arrow');
+    if (submenu.classList.contains('open')) {
+        arrow.innerHTML = '&#9652;';
+    } else {
+        arrow.innerHTML = '&#9662;';
+    }
 }
 </script>
 

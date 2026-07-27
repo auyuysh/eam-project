@@ -14,12 +14,15 @@ Database table
 ``otp_codes`` stores issued OTPs with metadata for verification and expiry.
 """
 
+import logging
 import random
 import string
 from datetime import datetime, timedelta, timezone
 
 from auth import auth_settings
 from auth.database import get_db
+
+logger = logging.getLogger("eam.auth.otp")
 
 
 def _now_utc():
@@ -76,19 +79,25 @@ def save_otp(user_id: int, otp: str, purpose: str = "login") -> bool:
 
         # Invalidate any previous unused OTPs for this user and purpose
         cursor.execute(
-            "UPDATE otp_codes SET used = 1 WHERE user_id = ? AND purpose = ? AND used = 0",
+            "UPDATE otp_codes SET used = 1 WHERE user_id = %s AND purpose = %s AND used = 0",
             (user_id, purpose),
         )
 
         cursor.execute(
             """
             INSERT INTO otp_codes (user_id, otp_code, purpose, created_at, expires_at, used, attempts)
-            VALUES (?, ?, ?, ?, ?, 0, 0)
+            VALUES (%s, %s, %s, %s, %s, 0, 0)
             """,
             (user_id, otp, purpose, now.isoformat(), expires_at.isoformat()),
         )
         conn.commit()
         return True
+    except Exception as e:
+        logger.error(
+            "[DB ERROR] file=auth/otp_service.py, function=save_otp, user_id=%s, error=%s",
+            user_id, e, exc_info=True,
+        )
+        return False
     finally:
         conn.close()
 
@@ -130,7 +139,7 @@ def verify_otp(user_id: int, otp: str, purpose: str = "login") -> str:
             """
             SELECT id, otp_code, expires_at, used, attempts
             FROM otp_codes
-            WHERE user_id = ? AND purpose = ?
+            WHERE user_id = %s AND purpose = %s
             ORDER BY created_at DESC
             LIMIT 1
             """,
@@ -141,7 +150,11 @@ def verify_otp(user_id: int, otp: str, purpose: str = "login") -> str:
         if row is None:
             return "not_found"
 
-        record_id, stored_code, expires_at_str, used, attempts = row
+        record_id = row['id']
+        stored_code = str(row['otp_code']).strip()
+        expires_at_str = row['expires_at']
+        used = row['used']
+        attempts = row['attempts']
 
         # Already used
         if used:
@@ -157,7 +170,7 @@ def verify_otp(user_id: int, otp: str, purpose: str = "login") -> str:
         # Already at or over max attempts (guard for re-entry)
         if attempts >= max_attempts:
             cursor.execute(
-                "UPDATE otp_codes SET used = 1 WHERE id = ?",
+                "UPDATE otp_codes SET used = 1 WHERE id = %s",
                 (record_id,),
             )
             conn.commit()
@@ -165,7 +178,7 @@ def verify_otp(user_id: int, otp: str, purpose: str = "login") -> str:
 
         # Increment attempts
         cursor.execute(
-            "UPDATE otp_codes SET attempts = attempts + 1 WHERE id = ?",
+            "UPDATE otp_codes SET attempts = attempts + 1 WHERE id = %s",
             (record_id,),
         )
         conn.commit()
@@ -173,7 +186,7 @@ def verify_otp(user_id: int, otp: str, purpose: str = "login") -> str:
         # Check if this attempt hits the limit
         if attempts + 1 >= max_attempts:
             cursor.execute(
-                "UPDATE otp_codes SET used = 1 WHERE id = ?",
+                "UPDATE otp_codes SET used = 1 WHERE id = %s",
                 (record_id,),
             )
             conn.commit()
@@ -188,11 +201,17 @@ def verify_otp(user_id: int, otp: str, purpose: str = "login") -> str:
 
         # Valid — mark as used
         cursor.execute(
-            "UPDATE otp_codes SET used = 1 WHERE id = ?",
+            "UPDATE otp_codes SET used = 1 WHERE id = %s",
             (record_id,),
         )
         conn.commit()
         return "valid"
+    except Exception as e:
+        logger.error(
+            "[DB ERROR] file=auth/otp_service.py, function=verify_otp, user_id=%s, error=%s",
+            user_id, e, exc_info=True,
+        )
+        return "invalid"
     finally:
         conn.close()
 
@@ -237,7 +256,7 @@ def resend_otp(user_id: int, purpose: str = "login") -> str:
         cursor.execute(
             """
             SELECT created_at FROM otp_codes
-            WHERE user_id = ? AND purpose = ?
+            WHERE user_id = %s AND purpose = %s
             ORDER BY created_at DESC
             LIMIT 1
             """,
@@ -246,7 +265,7 @@ def resend_otp(user_id: int, purpose: str = "login") -> str:
         row = cursor.fetchone()
 
         if row is not None:
-            last_created = datetime.fromisoformat(row[0])
+            last_created = datetime.fromisoformat(row['created_at'])
             if last_created.tzinfo is None:
                 last_created = last_created.replace(tzinfo=timezone.utc)
             elapsed = (now - last_created).total_seconds()
@@ -260,12 +279,12 @@ def resend_otp(user_id: int, purpose: str = "login") -> str:
         window_start = now - timedelta(minutes=window_minutes)
         cursor.execute(
             """
-            SELECT COUNT(*) FROM otp_codes
-            WHERE user_id = ? AND purpose = ? AND created_at >= ?
+            SELECT COUNT(*) AS count FROM otp_codes
+            WHERE user_id = %s AND purpose = %s AND created_at >= %s
             """,
             (user_id, purpose, window_start.isoformat()),
         )
-        resend_count = cursor.fetchone()[0]
+        resend_count = cursor.fetchone()['count']
         if resend_count >= max_resend:
             raise ValueError(
                 f"Maximum resend limit reached. Please try again after {window_minutes} minutes."
@@ -273,10 +292,16 @@ def resend_otp(user_id: int, purpose: str = "login") -> str:
 
         # Invalidate previous OTPs for this purpose
         cursor.execute(
-            "UPDATE otp_codes SET used = 1 WHERE user_id = ? AND purpose = ? AND used = 0",
+            "UPDATE otp_codes SET used = 1 WHERE user_id = %s AND purpose = %s AND used = 0",
             (user_id, purpose),
         )
         conn.commit()
+    except Exception as e:
+        logger.error(
+            "[DB ERROR] file=auth/otp_service.py, function=resend_otp, user_id=%s, error=%s",
+            user_id, e, exc_info=True,
+        )
+        raise
     finally:
         conn.close()
 
@@ -303,11 +328,17 @@ def cleanup_expired_otps() -> int:
     try:
         cursor = conn.cursor()
         cursor.execute(
-            "DELETE FROM otp_codes WHERE expires_at < ?",
+            "DELETE FROM otp_codes WHERE expires_at < %s",
             (now.isoformat(),),
         )
         deleted = cursor.rowcount
         conn.commit()
         return deleted
+    except Exception as e:
+        logger.error(
+            "[DB ERROR] file=auth/otp_service.py, function=cleanup_expired_otps, error=%s",
+            e, exc_info=True,
+        )
+        return 0
     finally:
         conn.close()

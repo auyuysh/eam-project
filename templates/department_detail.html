@@ -40,9 +40,9 @@
         .btn-primary:hover { background: #3f51b5; }
         .btn-cancel { background: #f0f0f0; color: #555; }
         .btn-cancel:hover { background: #e0e0e0; }
-        .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+        .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
         .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); display: flex; flex-direction: column; gap: 8px; }
-        .card-name { font-size: 16px; font-weight: 600; }
+        .card-title { font-size: 16px; font-weight: 600; }
         .card-count { font-size: 13px; color: #888; }
         .card-actions { margin-top: 12px; }
         .card-actions a { display: inline-block; padding: 8px 20px; background: #5c6bc0; color: white; border-radius: 6px; text-decoration: none; font-size: 13px; }
@@ -56,9 +56,7 @@
         .modal label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #555; }
         .modal input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; margin-bottom: 16px; box-sizing: border-box; font-family: inherit; }
         .modal input:focus { outline: none; border-color: #5c6bc0; }
-        .modal-hint { font-size: 12px; color: #aaa; margin-top: -12px; margin-bottom: 16px; }
         .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
-        .prefix-preview { font-size: 12px; color: #5c6bc0; margin-top: -12px; margin-bottom: 16px; font-weight: 500; min-height: 18px; }
     </style>
 </head>
 <body>
@@ -110,7 +108,8 @@
     <div class="content-area">
 
 <div class="breadcrumb">
-    <a href="/dashboard">Dashboard</a> &rsaquo; {{ dept_name }}
+    <a href="/dashboard">Dashboard</a> &rsaquo;
+    <a href="/department/{{ dept_name }}">{{ dept_name }}</a> &rsaquo; Detail
 </div>
 
 <div class="content">
@@ -125,60 +124,51 @@
     </div>
 
     <p class="page-subtitle">
-        Manage all asset types under this department.
+        Asset types and their summary for {{ dept_name }}.
     </p>
 
-    {% if asset_types %}
-        <div class="cards-grid">
-            {% for at in asset_types %}
-            <div class="card">
-                <div class="card-name">{{ at.name }}</div>
-                <div class="card-count">Assets: {{ at.asset_count }}</div>
-                <div class="card-count" style="font-size:12px; color:#bbb;">
-                    Prefix: {{ at.prefix }}
-                </div>
-                <div class="card-actions">
-                    <a href="/asset-type/{{ at.id }}">View</a>
-                </div>
+    <div class="row">
+      {% for asset_type in asset_types %}
+        {% set at_id = asset_type.id if asset_type.id else asset_type[0] %}
+        {% set at_name = asset_type.name if asset_type.name else asset_type[1] %}
+        {% set at_prefix = asset_type.prefix if asset_type.prefix else asset_type[2] %}
+        {% set at_count = asset_type.asset_count if asset_type.asset_count is defined else (asset_type[3] if asset_type[3] is defined else 0) %}
+
+        <div class="col-md-4 mb-3">
+          <div class="card shadow-sm border-0">
+            <div class="card-body">
+              <h5 class="card-title font-weight-bold mb-3">{{ at_name }}</h5>
+              <p class="card-text text-muted mb-1">
+                <strong>Assets:</strong> {{ at_count }}
+              </p>
+              <p class="card-text text-muted mb-3">
+                <strong>Prefix:</strong> {{ at_prefix if at_prefix else 'N/A' }}
+              </p>
+              <a href="/asset-type/{{ at_id }}" class="btn btn-primary px-4">View</a>
             </div>
-            {% endfor %}
+          </div>
         </div>
-    {% else %}
-        <div class="empty-state">
-            <p>No asset types created yet.</p>
-            {% if is_super_admin or 'assets.create' in user_permissions %}
-            <button class="btn btn-primary" onclick="openModal()">
-                + Create Your First Asset Type
-            </button>
-            {% endif %}
+      {% else %}
+        <div class="col-12">
+          <p class="text-muted">No asset types found for this department.</p>
         </div>
-    {% endif %}
+      {% endfor %}
+    </div>
 
-</div><!-- /content -->
+</div>
 
-    </div><!-- /content-area -->
-</div><!-- /main-layout -->
+    </div>
+</div>
 
 {% if is_super_admin or 'assets.create' in user_permissions %}
-<!-- Create Asset Type Modal -->
 <div class="modal-overlay" id="createModal">
     <div class="modal">
         <h2>Create Asset Type</h2>
         <form id="createAssetTypeForm" method="POST"
               action="/department/{{ dept_name }}/create-asset-type">
-
             <label>Asset Type Name</label>
-            <input
-                type="text"
-                name="name"
-                id="assetTypeName"
-                placeholder="e.g. Laptop"
-                required
-                autocomplete="off"
-                oninput="updatePreview()"
-            >
-            <div class="prefix-preview" id="prefixPreview"></div>
-
+            <input type="text" name="name" id="assetTypeName"
+                   placeholder="e.g. Laptop" required autocomplete="off">
             <div class="modal-actions">
                 <button type="button" class="btn btn-cancel"
                         onclick="closeModal()">Cancel</button>
@@ -194,28 +184,10 @@
     function openModal() {
         document.getElementById('createModal').classList.add('active');
         document.getElementById('assetTypeName').focus();
-        updatePreview();
     }
-
     function closeModal() {
         document.getElementById('createModal').classList.remove('active');
         document.getElementById('assetTypeName').value = '';
-        document.getElementById('prefixPreview').textContent = '';
-    }
-
-    function updatePreview() {
-        const name = document.getElementById('assetTypeName').value
-            .trim().toUpperCase();
-        const dept = '{{ dept_name }}'.toUpperCase();
-        const preview = document.getElementById('prefixPreview');
-
-        if (name.length >= 1) {
-            const deptPart = dept.substring(0, 3);
-            const typePart = name.substring(0, 3);
-            preview.textContent = `Auto-generated prefix: ${deptPart}-${typePart}`;
-        } else {
-            preview.textContent = '';
-        }
     }
 
     var createModalEl = document.getElementById('createModal');
@@ -227,32 +199,22 @@
     document.getElementById('createAssetTypeForm')
         .addEventListener('submit', function(e) {
             e.preventDefault();
-
             const btn = document.getElementById('createBtn');
             if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
-
-            fetch(this.action, {
-                method: 'POST',
-                body: new FormData(this)
-            })
-            .then(function() {
-                location.reload();
-            })
-            .catch(function(err) {
-                console.error(err);
-                if (btn) { btn.disabled = false; btn.textContent = 'Create'; }
-            });
+            fetch(this.action, { method: 'POST', body: new FormData(this) })
+                .then(function() { location.reload(); })
+                .catch(function(err) {
+                    console.error(err);
+                    if (btn) { btn.disabled = false; btn.textContent = 'Create'; }
+                });
         });
     }
+
     function toggleSubmenu(el) {
         const submenu = el.nextElementSibling;
         submenu.classList.toggle('open');
         const arrow = el.querySelector('.arrow');
-        if (submenu.classList.contains('open')) {
-            arrow.innerHTML = '&#9652;';
-        } else {
-            arrow.innerHTML = '&#9662;';
-        }
+        arrow.innerHTML = submenu.classList.contains('open') ? '&#9652;' : '&#9662;';
     }
 </script>
 

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>My Incidents — EAM Service Desk</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Poppins', sans-serif; background: #f5f6fa; color: #333; }
+        .navbar { background: #1a1a2e; color: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; height: 56px; }
+        .navbar h2 { font-size: 18px; }
+        .nav-right { display: flex; gap: 16px; align-items: center; font-size: 14px; color: #aaa; }
+        .nav-right a { color: #aaa; text-decoration: none; }
+        .nav-right a:hover { color: white; }
+        .main-layout { display: flex; min-height: calc(100vh - 56px); }
+        .sidebar { width: 240px; background: #1a1a2e; color: white; display: flex; flex-direction: column; flex-shrink: 0; border-top: 1px solid #2e2e4f; }
+        .sidebar-menu { list-style: none; padding: 20px 0; margin: 0; }
+        .menu-section { padding: 12px 24px 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; }
+        .menu-item { display: block; padding: 10px 24px; color: #d1d5db; text-decoration: none; font-size: 14px; transition: all 0.2s ease; cursor: pointer; }
+        .menu-item:hover, .menu-item.active { background: rgba(255,255,255,0.05); color: white; }
+        .menu-has-submenu { position: relative; }
+        .submenu-toggle { display: flex; justify-content: space-between; align-items: center; padding: 10px 24px; color: #d1d5db; font-size: 14px; cursor: pointer; transition: all 0.2s ease; }
+        .submenu-toggle:hover { background: rgba(255,255,255,0.05); color: white; }
+        .submenu { list-style: none; padding-left: 16px; display: none; }
+        .submenu.open { display: block; }
+        .submenu .menu-item { padding: 8px 24px; font-size: 13px; }
+        .arrow { font-size: 10px; transition: transform 0.2s; }
+        .content-area { flex-grow: 1; padding: 32px; background: #f5f6fa; overflow-y: auto; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .page-header h1 { font-size: 24px; }
+        .page-subtitle { color: #888; font-size: 14px; margin-bottom: 24px; }
+        .filter-bar { background: white; border-radius: 12px; padding: 16px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+        .filter-group { display: flex; flex-direction: column; gap: 4px; }
+        .filter-group label { font-size: 12px; font-weight: 500; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+        .filter-group select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: inherit; }
+        .filter-group select:focus { outline: none; border-color: #5c6bc0; }
+        .results-count { font-size: 13px; color: #888; margin-bottom: 16px; }
+        .tickets-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
+        .ticket-card { background: white; border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 4px solid #5c6bc0; display: flex; flex-direction: column; gap: 10px; transition: box-shadow 0.2s; }
+        .ticket-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+        .ticket-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+        .ticket-title { font-size: 15px; font-weight: 600; color: #1a1a2e; line-height: 1.3; }
+        .ticket-id { font-size: 12px; color: #888; font-weight: 500; }
+        .priority-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: white; white-space: nowrap; }
+        .status-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: white; white-space: nowrap; }
+        .ticket-desc { font-size: 13px; color: #666; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .ticket-meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: #888; }
+        .ticket-meta span { display: flex; align-items: center; gap: 4px; }
+        .ticket-meta strong { color: #555; font-weight: 500; }
+        .ticket-card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 10px; border-top: 1px solid #f0f0f0; }
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; text-decoration: none; display: inline-block; transition: all 0.15s; font-family: inherit; }
+        .btn-primary { background: #5c6bc0; color: white; }
+        .btn-primary:hover { background: #3f51b5; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #aaa; }
+        .empty-state p { font-size: 15px; margin-bottom: 16px; }
+        .flash-messages { margin-bottom: 20px; }
+        .flash { padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 10px; }
+        .flash-success { background: #e8f5e9; color: #2e7d32; }
+        .flash-danger { background: #ffebee; color: #c62828; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>Enterprise Asset Management</h2>
+    <div class="nav-right">
+        <a href="/profile">{{ user.first_name }}</a>
+        <a href="/logout">Logout</a>
+    </div>
+</div>
+
+<div class="main-layout">
+    <div class="sidebar">
+        <ul class="sidebar-menu">
+            <li><a href="/dashboard" class="menu-item">Dashboard</a></li>
+            <li><a href="/profile" class="menu-item">My Profile</a></li>
+            {% if is_super_admin or 'users.view' in user_permissions or 'roles.view' in user_permissions %}
+            <li class="menu-section">Admin</li>
+            <li class="menu-has-submenu">
+                <div class="submenu-toggle" onclick="toggleSubmenu(this)">
+                    <span>Users &amp; Roles</span>
+                    <span class="arrow">&#9662;</span>
+                </div>
+                <ul class="submenu">
+                    {% if is_super_admin or 'users.view' in user_permissions %}
+                    <li><a href="/admin/users" class="menu-item">Users</a></li>
+                    {% endif %}
+                    {% if is_super_admin or 'roles.view' in user_permissions %}
+                    <li><a href="/admin/roles" class="menu-item">Roles</a></li>
+                    {% endif %}
+                </ul>
+            </li>
+            {% endif %}
+            <li class="menu-section">Service Desk</li>
+            {% include 'partials/navbar.html' %}
+            <li class="menu-section">Incident Management</li>
+            {% include 'partials/incidents_navbar.html' %}
+            {% if is_super_admin or 'assets.view' in user_permissions %}
+            <li><a href="/admin/reports" class="menu-item">Reports</a></li>
+            {% endif %}
+            {% if is_super_admin %}
+            <li><a href="/admin/ldap" class="menu-item">LDAP Config</a></li>
+            <li><a href="/admin/email" class="menu-item">Email Config</a></li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <div class="content-area">
+        <div class="page-header"><h1>My Incidents</h1></div>
+        <p class="page-subtitle">Incidents assigned to you, reported by you, or managed by you.</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                <div class="flash flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        <form method="GET" action="/incidents/my-incidents">
+        <div class="filter-bar">
+            <div class="filter-group">
+                <label>Status</label>
+                <select name="status">
+                    <option value="">All Statuses</option>
+                    <option value="ASSIGNED" {% if status_filter == 'ASSIGNED' %}selected{% endif %}>Assigned</option>
+                    <option value="WAITING_FOR_INVESTIGATION_APPROVAL" {% if status_filter == 'WAITING_FOR_INVESTIGATION_APPROVAL' %}selected{% endif %}>Pending Investigation Approval</option>
+                    <option value="INVESTIGATION_APPROVED" {% if status_filter == 'INVESTIGATION_APPROVED' %}selected{% endif %}>Investigation Approved</option>
+                    <option value="WAITING_FOR_RCA_APPROVAL" {% if status_filter == 'WAITING_FOR_RCA_APPROVAL' %}selected{% endif %}>Pending RCA Approval</option>
+                    <option value="RCA_APPROVED" {% if status_filter == 'RCA_APPROVED' %}selected{% endif %}>RCA Approved</option>
+                    <option value="WAITING_FOR_VERIFICATION" {% if status_filter == 'WAITING_FOR_VERIFICATION' %}selected{% endif %}>Pending Verification</option>
+                    <option value="CLOSED" {% if status_filter == 'CLOSED' %}selected{% endif %}>Closed</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>&nbsp;</label>
+                <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+            </div>
+            <div class="filter-group">
+                <label>&nbsp;</label>
+                <a href="/incidents/my-incidents" class="btn btn-sm" style="background:#f0f0f0;color:#555;">Clear</a>
+            </div>
+        </div>
+        </form>
+
+        <div class="results-count">{{ incidents | length }} incident{{ 's' if incidents | length != 1 else '' }}</div>
+
+        {% if incidents %}
+        <div class="tickets-grid">
+            {% for inc in incidents %}
+            <div class="ticket-card" style="border-left-color: {{ status_colors.get(inc.status, '#5c6bc0') }};">
+                <div class="ticket-card-header">
+                    <div>
+                        <span class="ticket-id">{{ inc.incident_code }}</span>
+                        <div class="ticket-title">{{ inc.title }}</div>
+                    </div>
+                    <div style="display:flex;gap:6px;flex-shrink:0;">
+                        <span class="priority-badge" style="background: {{ priority_colors.get(inc.priority, '#888') }};">{{ inc.priority }}</span>
+                        <span class="status-badge" style="background: {{ status_colors.get(inc.status, '#5c6bc0') }};">{{ status_labels.get(inc.status, inc.status) }}</span>
+                    </div>
+                </div>
+                <div class="ticket-desc">{{ inc.description or '' }}</div>
+                <div class="ticket-meta">
+                    <span><strong>Manager:</strong> {{ inc.manager_name or 'Unassigned' }}</span>
+                    <span><strong>Technician:</strong> {{ inc.technician_name or 'Unassigned' }}</span>
+                    <span><strong>Dept:</strong> {{ inc.dept_name or 'N/A' }}</span>
+                </div>
+                <div class="ticket-card-footer">
+                    <span style="font-size:11px;color:#888;">{{ inc.updated_at[:10] if inc.updated_at else (inc.incident_date[:10] if inc.incident_date else '') }}</span>
+                    <div style="display:flex;gap:6px;align-items:center;">
+                        {% if inc.status == 'ASSIGNED' %}
+                        <a href="/incidents/{{ inc.id }}/investigation" class="btn btn-primary btn-sm">Start Investigation</a>
+                        {% elif inc.status == 'INVESTIGATION_APPROVED' %}
+                        <a href="/incidents/{{ inc.id }}/rca" class="btn btn-primary btn-sm">Perform Root Cause Analysis</a>
+                        {% elif inc.status == 'RCA_APPROVED' %}
+                        <a href="/incidents/{{ inc.id }}/corrective-action" class="btn btn-primary btn-sm">Execute Corrective Action</a>
+                        {% elif inc.status.startswith('WAITING_FOR_') %}
+                        <span class="status-badge" style="background:#f59e0b;font-size:11px;">Pending Manager Review</span>
+                        {% endif %}
+                        <a href="/incidents/{{ inc.id }}" class="btn btn-sm" style="background:#f0f0f0;color:#555;">View</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <p>No incidents found.</p>
+            <a href="/incidents/create" class="btn btn-primary">Raise an Incident</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function toggleSubmenu(el) {
+    var submenu = el.nextElementSibling;
+    var arrow = el.querySelector('.arrow');
+    submenu.classList.toggle('open');
+    arrow.style.transform = submenu.classList.contains('open') ? 'rotate(180deg)' : '';
+}
+document.querySelectorAll('.submenu-toggle').forEach(function(toggle) {
+    if (toggle.textContent.trim().includes('Incident Management')) {
+        var submenu = toggle.nextElementSibling;
+        if (submenu) { submenu.classList.add('open'); var arrow = toggle.querySelector('.arrow'); if (arrow) arrow.style.transform = 'rotate(180deg)'; }
+    }
+});
+</script>
+
+</body>
+</html>

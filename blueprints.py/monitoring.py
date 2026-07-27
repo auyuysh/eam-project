@@ -1,18 +1,18 @@
 # blueprints/monitoring.py
 from flask import Blueprint, request, jsonify
-import sqlite3
 from datetime import datetime
 from zoneinfo import ZoneInfo
+import logging
 import os
+
+from auth.database import get_db as _get_pg_db, dict_cursor
+
+logger = logging.getLogger("eam.monitoring")
 
 monitoring = Blueprint("monitoring", __name__)
 
-DB_NAME = "devices.db"
-
 def get_db():
-    conn = sqlite3.connect(DB_NAME)
-    conn.row_factory = sqlite3.Row
-    return conn
+    return _get_pg_db()
 
 # ─── AGENT REGISTRATION ──────────────────────────────────────
 
@@ -30,33 +30,37 @@ def agent_register():
     now = datetime.now(ZoneInfo("Asia/Kolkata")).isoformat()
 
     conn = get_db()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute("SELECT uuid FROM monitored_devices WHERE uuid = ?", (uuid,))
-    existing = cursor.fetchone()
+        cursor.execute("SELECT uuid FROM monitored_devices WHERE uuid = %s", (uuid,))
+        existing = cursor.fetchone()
 
-    if not existing:
-        cursor.execute("""
-            INSERT INTO monitored_devices (
-                uuid, serial_number, hostname, os_version,
-                mac_address, manufacturer, model, registered_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            uuid,
-            data.get("serial_number"),
-            data.get("hostname"),
-            data.get("os_version"),
-            data.get("mac_address"),
-            data.get("manufacturer"),
-            data.get("model"),
-            now
-        ))
-        conn.commit()
+        if not existing:
+            cursor.execute("""
+                INSERT INTO monitored_devices (
+                    uuid, serial_number, hostname, os_version,
+                    mac_address, manufacturer, model, registered_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                uuid,
+                data.get("serial_number"),
+                data.get("hostname"),
+                data.get("os_version"),
+                data.get("mac_address"),
+                data.get("manufacturer"),
+                data.get("model"),
+                now
+            ))
+            conn.commit()
+            return jsonify({"status": "registered"}), 201
+
+        return jsonify({"status": "already_registered"}), 200
+    except Exception as e:
+        logger.error("[DB ERROR] file=blueprints/monitoring.py, function=agent_register, uuid=%s, error=%s", uuid, e, exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+    finally:
         conn.close()
-        return jsonify({"status": "registered"}), 201
-
-    conn.close()
-    return jsonify({"status": "already_registered"}), 200
 
 
 # ─── HEARTBEAT ───────────────────────────────────────────────
@@ -75,36 +79,40 @@ def agent_heartbeat():
     now = datetime.now(ZoneInfo("Asia/Kolkata")).isoformat()
 
     conn = get_db()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute(
-        "SELECT uuid FROM monitored_devices WHERE uuid = ?", (uuid,)
-    )
-    existing = cursor.fetchone()
+        cursor.execute(
+            "SELECT uuid FROM monitored_devices WHERE uuid = %s", (uuid,)
+        )
+        existing = cursor.fetchone()
 
-    if existing:
-        cursor.execute("""
-            UPDATE monitored_devices SET
-                battery_percentage = ?,
-                ssid = ?,
-                logged_in_user = ?,
-                status = ?,
-                last_seen = ?
-            WHERE uuid = ?
-        """, (
-            data.get("battery_percentage"),
-            data.get("ssid"),
-            data.get("logged_in_user"),
-            "online",
-            now,
-            uuid
-        ))
-        conn.commit()
+        if existing:
+            cursor.execute("""
+                UPDATE monitored_devices SET
+                    battery_percentage = %s,
+                    ssid = %s,
+                    logged_in_user = %s,
+                    status = %s,
+                    last_seen = %s
+                WHERE uuid = %s
+            """, (
+                data.get("battery_percentage"),
+                data.get("ssid"),
+                data.get("logged_in_user"),
+                "online",
+                now,
+                uuid
+            ))
+            conn.commit()
+            return jsonify({"status": "updated"}), 200
+
+        return jsonify({"status": "not_registered"}), 404
+    except Exception as e:
+        logger.error("[DB ERROR] file=blueprints/monitoring.py, function=agent_heartbeat, uuid=%s, error=%s", uuid, e, exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+    finally:
         conn.close()
-        return jsonify({"status": "updated"}), 200
-
-    conn.close()
-    return jsonify({"status": "not_registered"}), 404
 
 
 # ─── DEVICE INFO ─────────────────────────────────────────────
@@ -120,29 +128,34 @@ def agent_device_info():
     now = datetime.now(ZoneInfo("Asia/Kolkata")).isoformat()
 
     conn = get_db()
-    cursor = conn.cursor()
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute("""
-        UPDATE monitored_devices SET
-            hostname = ?,
-            os_version = ?,
-            mac_address = ?,
-            manufacturer = ?,
-            model = ?,
-            last_seen = ?
-        WHERE uuid = ?
-    """, (
-        data.get("hostname"),
-        data.get("os_version"),
-        data.get("mac_address"),
-        data.get("manufacturer"),
-        data.get("model"),
-        now,
-        uuid
-    ))
-    conn.commit()
-    conn.close()
-    return jsonify({"status": "updated"}), 200
+        cursor.execute("""
+            UPDATE monitored_devices SET
+                hostname = %s,
+                os_version = %s,
+                mac_address = %s,
+                manufacturer = %s,
+                model = %s,
+                last_seen = %s
+            WHERE uuid = %s
+        """, (
+            data.get("hostname"),
+            data.get("os_version"),
+            data.get("mac_address"),
+            data.get("manufacturer"),
+            data.get("model"),
+            now,
+            uuid
+        ))
+        conn.commit()
+        return jsonify({"status": "updated"}), 200
+    except Exception as e:
+        logger.error("[DB ERROR] file=blueprints/monitoring.py, function=agent_device_info, uuid=%s, error=%s", uuid, e, exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+    finally:
+        conn.close()
 
 
 # ─── STATUS ──────────────────────────────────────────────────
@@ -158,16 +171,21 @@ def agent_status():
     now = datetime.now(ZoneInfo("Asia/Kolkata")).isoformat()
 
     conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        UPDATE monitored_devices SET
-            status = ?,
-            last_seen = ?
-        WHERE uuid = ?
-    """, (data.get("status", "online"), now, uuid))
-    conn.commit()
-    conn.close()
-    return jsonify({"status": "updated"}), 200
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE monitored_devices SET
+                status = %s,
+                last_seen = %s
+            WHERE uuid = %s
+        """, (data.get("status", "online"), now, uuid))
+        conn.commit()
+        return jsonify({"status": "updated"}), 200
+    except Exception as e:
+        logger.error("[DB ERROR] file=blueprints/monitoring.py, function=agent_status, uuid=%s, error=%s", uuid, e, exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+    finally:
+        conn.close()
 
 
 # ─── BATTERY ─────────────────────────────────────────────────
@@ -182,14 +200,19 @@ def agent_battery():
     uuid = data.get("uuid")
 
     conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        UPDATE monitored_devices SET battery_percentage = ?
-        WHERE uuid = ?
-    """, (data.get("battery_percentage"), uuid))
-    conn.commit()
-    conn.close()
-    return jsonify({"status": "updated"}), 200
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE monitored_devices SET battery_percentage = %s
+            WHERE uuid = %s
+        """, (data.get("battery_percentage"), uuid))
+        conn.commit()
+        return jsonify({"status": "updated"}), 200
+    except Exception as e:
+        logger.error("[DB ERROR] file=blueprints/monitoring.py, function=agent_battery, uuid=%s, error=%s", uuid, e, exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+    finally:
+        conn.close()
 
 
 # ─── PENDING DEVICES (for future dashboard) ──────────────────
@@ -201,8 +224,13 @@ def get_pending():
         return jsonify({"error": "Unauthorized"}), 401
 
     conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM pending_devices")
-    rows = cursor.fetchall()
-    conn.close()
-    return jsonify([dict(row) for row in rows]), 200
+    try:
+        cursor = dict_cursor(conn)
+        cursor.execute("SELECT * FROM pending_devices")
+        rows = cursor.fetchall()
+        return jsonify([dict(row) for row in rows]), 200
+    except Exception as e:
+        logger.error("[DB ERROR] file=blueprints/monitoring.py, function=get_pending, error=%s", e, exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+    finally:
+        conn.close()

@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Users & Roles Management — EAM</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Poppins', sans-serif; background: #f5f6fa; color: #333; }
+        .navbar { background: #1a1a2e; color: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; height: 56px; }
+        .navbar h2 { font-size: 18px; }
+        .nav-right { display: flex; gap: 16px; align-items: center; font-size: 14px; color: #aaa; }
+        .nav-right a { color: #aaa; text-decoration: none; }
+        .nav-right a:hover { color: white; }
+
+        /* Sidebar Layout styling */
+        .main-layout { display: flex; min-height: calc(100vh - 56px); }
+        .sidebar { width: 240px; background: #1a1a2e; color: white; display: flex; flex-direction: column; flex-shrink: 0; border-top: 1px solid #2e2e4f; }
+        .sidebar-menu { list-style: none; padding: 20px 0; margin: 0; }
+        .menu-section { padding: 12px 24px 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; }
+        .menu-item { display: block; padding: 10px 24px; color: #d1d5db; text-decoration: none; font-size: 14px; transition: all 0.2s ease; cursor: pointer; }
+        .menu-item:hover, .menu-item.active { background: rgba(255,255,255,0.05); color: white; }
+        .menu-has-submenu { position: relative; }
+        .submenu-toggle { display: flex; justify-content: space-between; align-items: center; padding: 10px 24px; color: #d1d5db; font-size: 14px; cursor: pointer; transition: all 0.2s ease; }
+        .submenu-toggle:hover { background: rgba(255,255,255,0.05); color: white; }
+        .submenu { list-style: none; padding-left: 16px; display: none; }
+        .submenu.open { display: block; }
+        .submenu .menu-item { padding: 8px 24px; font-size: 13px; }
+        .arrow { font-size: 10px; transition: transform 0.2s; }
+        .content-area { flex-grow: 1; padding: 32px; background: #f5f6fa; overflow-y: auto; }
+
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .page-header h1 { font-size: 24px; }
+        .page-subtitle { color: #888; font-size: 14px; margin-bottom: 32px; }
+
+        /* Tabs styling */
+        .tabs-header { display: flex; gap: 10px; margin-bottom: 24px; border-bottom: 2px solid #ddd; padding-bottom: 2px; }
+        .tab-btn { background: none; border: none; padding: 10px 20px; font-size: 15px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 3px solid transparent; outline: none; transition: 0.2s; }
+        .tab-btn:hover { color: #1a1a2e; }
+        .tab-btn.active { color: #1a1a2e; border-bottom-color: #5c6bc0; font-weight: 600; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Card and Table list styling */
+        .data-card { background: white; border-radius: 12px; padding: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px; overflow: hidden; }
+        .data-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .data-table th, .data-table td { padding: 14px 16px; border-bottom: 1px solid #eee; font-size: 14px; }
+        .data-table th { background: #f9fafb; font-weight: 600; color: #4b5563; }
+        .data-table tbody tr:hover { background: #f9fafb; }
+        .data-table tbody tr.auth-row:hover { background: transparent; }
+
+        .badge { display: inline-block; padding: 4px 10px; font-size: 12px; font-weight: 500; border-radius: 20px; text-transform: uppercase; }
+        .badge-pending { background: #fff3e0; color: #e65100; }
+        .badge-active { background: #e8f5e9; color: #2e7d32; }
+        .badge-disabled { background: #ffebee; color: #c62828; }
+        .badge-rejected { background: #ffebee; color: #c62828; }
+        .badge-global { background: #e3f2fd; color: #1565c0; }
+
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; text-decoration: none; display: inline-block; font-family: inherit; transition: 0.2s; }
+        .btn-primary { background: #5c6bc0; color: white; }
+        .btn-primary:hover { background: #3f51b5; }
+        .btn-secondary { background: #eaeaea; color: #333; }
+        .btn-secondary:hover { background: #dcdcdc; }
+        .btn-cancel { background: #f0f0f0; color: #555; }
+        .btn-cancel:hover { background: #e0e0e0; }
+        .btn-danger { background: #e53935; color: white; }
+        .btn-danger:hover { background: #c62828; }
+
+        /* Flash messages */
+        .flash-container { margin-bottom: 20px; }
+        .flash-msg { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .flash-msg.success { background: #e8f5e9; color: #2e7d32; }
+        .flash-msg.error { background: #ffebee; color: #c62828; }
+        .flash-close { background: none; border: none; cursor: pointer; font-size: 16px; color: inherit; opacity: 0.6; padding: 0 4px; }
+        .flash-close:hover { opacity: 1; }
+
+        /* Authorization tray */
+        .auth-tray { display: none; background: #f8f9ff; }
+        .auth-tray.open { display: table-row; }
+        .auth-tray td { padding: 0; border-bottom: 2px solid #5c6bc0; }
+        .auth-tray-inner { padding: 20px 24px; }
+        .auth-tray-title { font-size: 14px; font-weight: 600; color: #1a1a2e; margin-bottom: 16px; }
+        .auth-form-row { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+        .auth-form-group { display: flex; flex-direction: column; }
+        .auth-form-group label { font-size: 12px; font-weight: 600; color: #555; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
+        .auth-form-group input,
+        .auth-form-group select { padding: 9px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: inherit; min-width: 160px; background: white; }
+        .auth-form-group input:focus,
+        .auth-form-group select:focus { outline: none; border-color: #5c6bc0; }
+        .auth-form-group input::placeholder { color: #aaa; }
+        .auth-form-actions { display: flex; gap: 8px; align-items: flex-end; margin-left: auto; }
+
+        /* Edit tray (super admin inline editing) */
+        .edit-tray { display: none; background: #f8f9ff; }
+        .edit-tray.open { display: table-row; }
+        .edit-tray td { padding: 0; border-bottom: 2px solid #5c6bc0; }
+        .edit-tray-inner { padding: 20px 24px; }
+        .edit-tray-title { font-size: 14px; font-weight: 600; color: #1a1a2e; margin-bottom: 16px; }
+        .edit-form-row { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+        .edit-form-group { display: flex; flex-direction: column; }
+        .edit-form-group label { font-size: 12px; font-weight: 600; color: #555; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
+        .edit-form-group input,
+        .edit-form-group select { padding: 9px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: inherit; min-width: 160px; background: white; }
+        .edit-form-group input:focus,
+        .edit-form-group select:focus { outline: none; border-color: #5c6bc0; }
+        .edit-form-actions { display: flex; gap: 8px; align-items: flex-end; margin-left: auto; }
+
+        /* Modals style */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: white; border-radius: 12px; padding: 32px; width: 480px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+        .modal h2 { font-size: 18px; margin-bottom: 20px; color: #1a1a2e; }
+        .modal label { display: block; font-size: 13px; font-weight: 500; margin-top: 14px; margin-bottom: 6px; color: #555; }
+        .modal input, .modal select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; box-sizing: border-box; font-family: inherit; }
+        .modal input:focus, .modal select:focus { outline: none; border-color: #5c6bc0; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+        .error-msg { background: #ffebee; color: #c62828; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+        .empty-state { text-align: center; padding: 40px 20px; color: #aaa; font-size: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>Enterprise Asset Management</h2>
+    <div class="nav-right">
+        <a href="/profile">{{ username }}</a>
+        <a href="/logout">Logout</a>
+    </div>
+</div>
+
+<div class="main-layout">
+    <!-- Left Navigation Sidebar -->
+    <div class="sidebar">
+        <ul class="sidebar-menu">
+            <li><a href="/dashboard" class="menu-item">Dashboard</a></li>
+            <li><a href="/profile" class="menu-item">My Profile</a></li>
+
+            {% if is_super_admin or 'users.view' in user_permissions or 'roles.view' in user_permissions %}
+            <li class="menu-section">Admin</li>
+            <li class="menu-has-submenu">
+                <div class="submenu-toggle" onclick="toggleSubmenu(this)">
+                    <span>Users & Roles</span>
+                    <span class="arrow">&#9652;</span>
+                </div>
+                <ul class="submenu open">
+                    {% if is_super_admin or 'users.view' in user_permissions %}
+                    <li><a href="/admin/users" class="menu-item active">Users</a></li>
+                    {% endif %}
+                    {% if is_super_admin or 'roles.view' in user_permissions %}
+                    <li><a href="/admin/roles" class="menu-item">Roles</a></li>
+                    {% endif %}
+                </ul>
+            </li>
+            {% endif %}
+            <li class="menu-section">Service Desk</li>
+            {% include 'partials/navbar.html' %}
+            <li class="menu-section">Incident Management</li>
+            {% include 'partials/incidents_navbar.html' %}
+            {% if is_super_admin or 'assets.view' in user_permissions %}
+            <li><a href="/admin/reports" class="menu-item">Reports</a></li>
+            {% endif %}
+            {% if is_super_admin %}
+            <li><a href="/admin/ldap" class="menu-item">LDAP Config</a></li>
+            <li><a href="/admin/email" class="menu-item">Email Config</a></li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <!-- Content Area -->
+    <div class="content-area">
+        <div class="page-header">
+            <h1>Users & Roles</h1>
+        </div>
+        <p class="page-subtitle">Manage employee registrations, roles, departments, and access configurations.</p>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-container">
+                {% for category, message in messages %}
+                <div class="flash-msg {{ category }}">
+                    <span>{{ message }}</span>
+                    <button class="flash-close" onclick="this.parentElement.remove()">&times;</button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Tabs Container -->
+        <div class="tabs-header">
+            <button class="tab-btn active" onclick="switchTab(event, 'pending-tab')">Pending Requests ({{ pending_users|length }})</button>
+            <button class="tab-btn" onclick="switchTab(event, 'active-tab')">Active Accounts ({{ active_users|length }})</button>
+        </div>
+
+        <!-- Pending Tab -->
+        <div id="pending-tab" class="tab-content active">
+            <div class="data-card">
+                {% if pending_users %}
+                    <div style="display:flex; justify-content:flex-end; gap:8px; padding:16px 24px 0;">
+                        {% if is_super_admin or 'global.export.excel' in user_permissions %}
+                        <a href="/admin/users/export/pending/xlsx" class="btn btn-secondary" style="font-size:12px;">Export Excel</a>
+                        {% endif %}
+                        {% if is_super_admin or 'global.export.pdf' in user_permissions %}
+                        <a href="/admin/users/export/pending/pdf" class="btn btn-secondary" style="font-size:12px;">Export PDF</a>
+                        {% endif %}
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Full Name</th>
+                                <th>Email</th>
+                                <th>Username</th>
+                                <th>Registration Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in pending_users %}
+                            <tr>
+                                <td><strong>{{ user.first_name }} {{ user.last_name }}</strong></td>
+                                <td>{{ user.email }}</td>
+                                <td>{{ user.username }}</td>
+                                <td>{{ user.created_at }}</td>
+                                <td><span class="badge badge-pending">Pending Approval</span></td>
+                                <td>
+                                    {% if is_super_admin or 'users.approve' in user_permissions %}
+                                    <button class="btn btn-primary btn-sm" onclick="toggleAuthTray('tray-{{ user.id }}', this)">Authorize Account</button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <!-- Authorization Tray Sub-Row -->
+                            {% if is_super_admin or 'users.approve' in user_permissions %}
+                            <tr class="auth-tray" id="tray-{{ user.id }}">
+                                <td colspan="6">
+                                    <div class="auth-tray-inner">
+                                        <div class="auth-tray-title">Authorize {{ user.first_name }} {{ user.last_name }} ({{ user.email }})</div>
+                                        <form method="POST" action="/admin/authorize/{{ user.id }}" class="auth-form-row" style="flex-direction:column;">
+                                            <div class="auth-form-row">
+                                                <div class="auth-form-group">
+                                                    <label for="company_id-{{ user.id }}">Company ID</label>
+                                                    <input type="text" id="company_id-{{ user.id }}" name="company_id" placeholder="e.g. PDMH-EMP-0001" required autocomplete="off">
+                                                </div>
+                                                <div class="auth-form-group">
+                                                    <label for="role_id-{{ user.id }}">Application Role</label>
+                                                    <select id="role_id-{{ user.id }}" name="role_id" required onchange="handleTrayRoleChange(this, {{ user.id }})">
+                                                        <option value="" disabled selected>-- Choose Role --</option>
+                                                        {% for role in roles %}
+                                                            <option value="{{ role.id }}" data-name="{{ role.name }}">{{ role.display_name }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <!-- Scope Selection Block -->
+                                            <div id="scope-section-{{ user.id }}" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid #e0e0e0;">
+                                                <div style="font-size:13px; font-weight:600; color:#555; margin-bottom:10px;">Access Scope</div>
+                                                <div class="auth-form-row">
+                                                    <div class="auth-form-group">
+                                                        <div style="display:flex; gap:16px; align-items:center;">
+                                                            <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; text-transform:none; letter-spacing:0;">
+                                                                <input type="radio" name="scope_type" value="global" id="scope_global_{{ user.id }}" onchange="handleScopeChange(this, {{ user.id }})"> Global (All Departments)
+                                                            </label>
+                                                            <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; text-transform:none; letter-spacing:0;">
+                                                                <input type="radio" name="scope_type" value="departmental" id="scope_dept_{{ user.id }}" checked onchange="handleScopeChange(this, {{ user.id }})"> Department-Specific
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="auth-form-group" id="dept-group-{{ user.id }}">
+                                                        <label for="department_id-{{ user.id }}">Assigned Department</label>
+                                                        <select id="department_id-{{ user.id }}" name="department_id" onchange="handleTrayDeptChange(this, {{ user.id }})">
+                                                            <option value="" disabled selected>-- Choose Department --</option>
+                                                            {% for dept in departments %}
+                                                                <option value="{{ dept.id }}">{{ dept.name }}</option>
+                                                            {% endfor %}
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <!-- Optional: Initial Asset Assignment -->
+                                            <div id="asset-section-{{ user.id }}" style="display:none; margin-top:16px; padding-top:14px; border-top:1px solid #e0e0e0; width:100%;">
+                                                <div style="font-size:13px; font-weight:600; color:#555; margin-bottom:12px;">Optional: Initial Asset Assignment</div>
+                                                <div class="auth-form-row">
+                                                    <div class="auth-form-group">
+                                                        <label for="asset_type_id-{{ user.id }}">Asset Type</label>
+                                                        <select id="asset_type_id-{{ user.id }}" onchange="handleTrayAssetTypeChange(this, {{ user.id }})">
+                                                            <option value="" disabled selected>-- Select Asset Type --</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="auth-form-group">
+                                                        <label for="asset_id-{{ user.id }}">Available Asset</label>
+                                                        <select name="asset_id" id="asset_id-{{ user.id }}">
+                                                            <option value="" disabled selected>-- Select Asset --</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="auth-form-actions" style="width:100%; margin-top:14px;">
+                                                <button type="button" class="btn btn-cancel btn-sm" onclick="toggleAuthTray('tray-{{ user.id }}', null)">Cancel</button>
+                                                <button type="submit" class="btn btn-primary btn-sm">Approve & Activate</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="empty-state">
+                        <p>No pending account authorization requests.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Active Tab -->
+        <div id="active-tab" class="tab-content">
+            <div class="data-card">
+                {% if active_users %}
+                    <div style="display:flex; justify-content:flex-end; gap:8px; padding:16px 24px 0;">
+                        {% if is_super_admin or 'global.export.excel' in user_permissions %}
+                        <a href="/admin/users/export/active/xlsx" class="btn btn-secondary" style="font-size:12px;">Export Excel</a>
+                        {% endif %}
+                        {% if is_super_admin or 'global.export.pdf' in user_permissions %}
+                        <a href="/admin/users/export/active/pdf" class="btn btn-secondary" style="font-size:12px;">Export PDF</a>
+                        {% endif %}
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Full Name</th>
+                                <th>Email</th>
+                                <th>Company ID</th>
+                                <th>Role</th>
+                                <th>Department</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in active_users %}
+                            <tr>
+                                <td>
+                                    <strong>{{ user.first_name }} {{ user.last_name }}</strong>
+                                    {% if user.is_super_admin or user.role == 'super_admin' %}
+                                        <span style="font-size:10px; color:#5c6bc0; border:1px solid #5c6bc0; padding:2px 6px; border-radius:4px; margin-left:4px; font-weight:600;">SUPER</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ user.email }}</td>
+                                <td><code>{{ user.company_id or 'NOT ASSIGNED' }}</code></td>
+                                <td>
+                                    {% if user.role == 'super_admin' %}
+                                        Super Admin
+                                    {% elif user.role == 'department_head' %}
+                                        {{ user.department_name }} Department Head
+                                    {% else %}
+                                        {{ user.role|upper }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.department_id %}
+                                        {{ user.department_name }}
+                                    {% else %}
+                                        <span class="badge badge-global">GLOBAL</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.account_status == 'active' %}
+                                        <span class="badge badge-active">Active</span>
+                                    {% else %}
+                                        <span class="badge badge-disabled">{{ user.account_status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if is_super_admin and 'users.edit' in user_permissions and not (user.is_super_admin or user.role == 'super_admin') %}
+                                    <button class="btn btn-secondary btn-sm" onclick="toggleEditTray('edit-tray-{{ user.id }}', {{ user.id }}, '{{ user.department_id or '' }}')">Edit Employee</button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% if is_super_admin and 'users.edit' in user_permissions and not (user.is_super_admin or user.role == 'super_admin') %}
+                            <tr class="edit-tray" id="edit-tray-{{ user.id }}">
+                                <td colspan="7">
+                                    <div class="edit-tray-inner">
+                                        <div class="edit-tray-title">Edit {{ user.first_name }} {{ user.last_name }} ({{ user.email }})</div>
+                                        <form method="POST" action="/admin/edit-active/{{ user.id }}" style="display:flex; flex-direction:column; gap:16px;">
+                                            <div class="edit-form-row">
+                                                <div class="edit-form-group">
+                                                    <label>Email (Read-Only)</label>
+                                                    <input type="text" value="{{ user.email }}" readonly style="background:#f5f6fa; border-color:#eee; min-width:220px;">
+                                                </div>
+                                                <div class="edit-form-group">
+                                                    <label for="edit_fn_{{ user.id }}">First Name</label>
+                                                    <input type="text" name="first_name" id="edit_fn_{{ user.id }}" value="{{ user.first_name }}" required>
+                                                </div>
+                                                <div class="edit-form-group">
+                                                    <label for="edit_ln_{{ user.id }}">Last Name</label>
+                                                    <input type="text" name="last_name" id="edit_ln_{{ user.id }}" value="{{ user.last_name }}" required>
+                                                </div>
+                                                <div class="edit-form-group">
+                                                    <label for="edit_cid_{{ user.id }}">Company ID</label>
+                                                    <input type="text" name="company_id" id="edit_cid_{{ user.id }}" value="{{ user.company_id or '' }}" required>
+                                                </div>
+                                            </div>
+                                            <div style="padding-top:14px; border-top:1px solid #e0e0e0; width:100%;">
+                                                <div style="font-size:13px; font-weight:600; color:#555; margin-bottom:12px;">Access Scope</div>
+                                                <div class="edit-form-row">
+                                                    <div class="edit-form-group">
+                                                        <div style="display:flex; gap:16px; align-items:center;">
+                                                            <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; text-transform:none; letter-spacing:0;">
+                                                                <input type="radio" name="scope_type" value="global" id="edit_scope_global_{{ user.id }}" onchange="handleEditScopeChange(this, {{ user.id }})"> Global (All Departments)
+                                                            </label>
+                                                            <label style="display:flex; align-items:center; gap:4px; font-size:13px; cursor:pointer; text-transform:none; letter-spacing:0;">
+                                                                <input type="radio" name="scope_type" value="departmental" id="edit_scope_dept_{{ user.id }}" checked onchange="handleEditScopeChange(this, {{ user.id }})"> Department-Specific
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="edit-form-group" id="edit-dept-group-{{ user.id }}">
+                                                        <label for="edit_department_id_{{ user.id }}">Department</label>
+                                                        <select id="edit_department_id_{{ user.id }}" name="department_id">
+                                                            <option value="" disabled selected>-- Choose Department --</option>
+                                                            {% for dept in departments %}
+                                                                <option value="{{ dept.id }}">{{ dept.name }}</option>
+                                                            {% endfor %}
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div style="padding-top:14px; border-top:1px solid #e0e0e0; width:100%;">
+                                                <div style="font-size:13px; font-weight:600; color:#555; margin-bottom:12px;">Optional: Asset Assignment</div>
+                                                <div class="edit-form-row">
+                                                    <div class="edit-form-group">
+                                                        <label for="edit_asset_type_{{ user.id }}">Asset Type</label>
+                                                        <select id="edit_asset_type_{{ user.id }}" onchange="handleEditAssetTypeChange(this, {{ user.id }})">
+                                                            <option value="" disabled selected>-- Select Asset Type --</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="edit-form-group">
+                                                        <label for="edit_asset_id_{{ user.id }}">Available Asset</label>
+                                                        <select name="asset_id" id="edit_asset_id_{{ user.id }}">
+                                                            <option value="" disabled selected>-- Select Asset --</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="edit-form-actions" style="width:100%;">
+                                                <button type="button" class="btn btn-cancel btn-sm" onclick="toggleEditTray('edit-tray-{{ user.id }}', null, null)">Cancel</button>
+                                                <button type="submit" class="btn btn-primary btn-sm">Save Changes</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="empty-state">
+                        <p>No active employee profiles found.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Tab switching
+    function switchTab(evt, tabId) {
+        var tabContents = document.getElementsByClassName("tab-content");
+        for (var i = 0; i < tabContents.length; i++) {
+            tabContents[i].classList.remove("active");
+        }
+        var tabBtns = document.getElementsByClassName("tab-btn");
+        for (var i = 0; i < tabBtns.length; i++) {
+            tabBtns[i].classList.remove("active");
+        }
+        document.getElementById(tabId).classList.add("active");
+        evt.currentTarget.classList.add("active");
+    }
+
+    // Sidebar Expand/Collapse
+    function toggleSubmenu(el) {
+        var submenu = el.nextElementSibling;
+        submenu.classList.toggle('open');
+        var arrow = el.querySelector('.arrow');
+        if (submenu.classList.contains('open')) {
+            arrow.innerHTML = '&#9652;';
+        } else {
+            arrow.innerHTML = '&#9662;';
+        }
+    }
+
+    // Authorization Tray Toggle
+    function toggleAuthTray(trayId, btn) {
+        var tray = document.getElementById(trayId);
+        if (!tray) return;
+
+        var isOpen = tray.classList.contains("open");
+
+        var allTrays = document.getElementsByClassName("auth-tray");
+        for (var i = 0; i < allTrays.length; i++) {
+            allTrays[i].classList.remove("open");
+        }
+
+        if (!isOpen) {
+            tray.classList.add("open");
+            var companyInput = tray.querySelector('input[name="company_id"]');
+            if (companyInput) companyInput.focus();
+        }
+    }
+
+    // Department visibility toggle for inline tray role selector
+    function handleTrayRoleChange(select, userId) {
+        var option = select.options[select.selectedIndex];
+        var roleName = option.getAttribute("data-name");
+        var scopeSection = document.getElementById("scope-section-" + userId);
+        var deptGroup = document.getElementById("dept-group-" + userId);
+        var deptSelect = document.getElementById("department_id-" + userId);
+        var scopeGlobal = document.getElementById("scope_global_" + userId);
+        var scopeDept = document.getElementById("scope_dept_" + userId);
+        var assetSection = document.getElementById("asset-section-" + userId);
+
+        if (roleName === "department_head") {
+            scopeSection.style.display = "block";
+            scopeDept.checked = true;
+            scopeGlobal.disabled = true;
+            deptGroup.style.display = "flex";
+            deptSelect.required = true;
+        } else if (roleName) {
+            scopeSection.style.display = "block";
+            scopeGlobal.disabled = false;
+            scopeGlobal.checked = true;
+            deptGroup.style.display = "none";
+            deptSelect.required = false;
+            deptSelect.value = "";
+            loadAllAssetTypes(userId, false);
+        } else {
+            scopeSection.style.display = "none";
+            deptGroup.style.display = "none";
+            deptSelect.required = false;
+            deptSelect.value = "";
+            assetSection.style.display = "none";
+            resetAssetSelectors(userId);
+        }
+    }
+
+    function handleScopeChange(radio, userId) {
+        var deptGroup = document.getElementById("dept-group-" + userId);
+        var deptSelect = document.getElementById("department_id-" + userId);
+        var assetSection = document.getElementById("asset-section-" + userId);
+
+        if (radio.value === "departmental") {
+            deptGroup.style.display = "flex";
+            deptSelect.required = true;
+            assetSection.style.display = "none";
+            resetAssetSelectors(userId);
+        } else {
+            deptGroup.style.display = "none";
+            deptSelect.required = false;
+            deptSelect.value = "";
+            loadAllAssetTypes(userId, false);
+        }
+    }
+
+    function handleTrayDeptChange(select, userId) {
+        var deptId = select.value;
+        var assetSection = document.getElementById("asset-section-" + userId);
+        var typeSelect = document.getElementById("asset_type_id-" + userId);
+        var assetSelect = document.getElementById("asset_id-" + userId);
+
+        resetAssetSelectors(userId);
+
+        if (!deptId) {
+            assetSection.style.display = "none";
+            return;
+        }
+
+        fetch("/admin/api/get-assets-helpers?department_id=" + deptId)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var types = data.asset_types || [];
+                typeSelect.innerHTML = "";
+                if (types.length === 0) {
+                    var opt = document.createElement("option");
+                    opt.value = "";
+                    opt.textContent = "No asset types found for this department";
+                    opt.disabled = true;
+                    opt.selected = true;
+                    typeSelect.appendChild(opt);
+                } else {
+                    var placeholder = document.createElement("option");
+                    placeholder.value = "";
+                    placeholder.textContent = "-- Select Asset Type --";
+                    placeholder.disabled = true;
+                    placeholder.selected = true;
+                    typeSelect.appendChild(placeholder);
+                    types.forEach(function(t) {
+                        var o = document.createElement("option");
+                        o.value = t.id;
+                        o.textContent = t.name;
+                        typeSelect.appendChild(o);
+                    });
+                }
+                assetSection.style.display = "block";
+            });
+    }
+
+    function handleTrayAssetTypeChange(select, userId) {
+        var typeId = select.value;
+        var assetSelect = document.getElementById("asset_id-" + userId);
+
+        assetSelect.innerHTML = "";
+
+        if (!typeId) {
+            var ph = document.createElement("option");
+            ph.value = "";
+            ph.textContent = "-- Select Asset --";
+            ph.disabled = true;
+            ph.selected = true;
+            assetSelect.appendChild(ph);
+            return;
+        }
+
+        fetch("/admin/api/get-assets-helpers?asset_type_id=" + typeId)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var assets = data.assets || [];
+                if (assets.length === 0) {
+                    var opt = document.createElement("option");
+                    opt.value = "";
+                    opt.textContent = "No unassigned assets available";
+                    opt.disabled = true;
+                    opt.selected = true;
+                    assetSelect.appendChild(opt);
+                } else {
+                    var placeholder = document.createElement("option");
+                    placeholder.value = "";
+                    placeholder.textContent = "-- Select Asset --";
+                    placeholder.disabled = true;
+                    placeholder.selected = true;
+                    assetSelect.appendChild(placeholder);
+                    assets.forEach(function(a) {
+                        var o = document.createElement("option");
+                        o.value = a.id;
+                        o.textContent = a.asset_id + " \u2014 " + a.name;
+                        assetSelect.appendChild(o);
+                    });
+                }
+            });
+    }
+
+    function resetAssetSelectors(userId) {
+        var typeSelect = document.getElementById("asset_type_id-" + userId);
+        var assetSelect = document.getElementById("asset_id-" + userId);
+        if (typeSelect) {
+            typeSelect.innerHTML = '<option value="" disabled selected>-- Select Asset Type --</option>';
+        }
+        if (assetSelect) {
+            assetSelect.innerHTML = '<option value="" disabled selected>-- Select Asset --</option>';
+        }
+    }
+
+    function loadAllAssetTypes(userId, isEdit) {
+        var prefix = isEdit ? "edit_" : "";
+        var typeSelect = document.getElementById(prefix + "asset_type_id_" + userId);
+        var assetSelect = document.getElementById(prefix + "asset_id_" + userId);
+        var assetSection = isEdit ? typeSelect.closest("div[style]") : document.getElementById("asset-section-" + userId);
+
+        if (typeSelect) {
+            typeSelect.innerHTML = '<option value="" disabled selected>-- Select Asset Type --</option>';
+        }
+        if (assetSelect) {
+            assetSelect.innerHTML = '<option value="" disabled selected>-- Select Asset --</option>';
+        }
+        if (assetSection && !isEdit) {
+            assetSection.style.display = "block";
+        }
+
+        fetch("/admin/api/get-assets-helpers")
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var types = data.asset_types || [];
+                typeSelect.innerHTML = "";
+                if (types.length === 0) {
+                    var opt = document.createElement("option");
+                    opt.value = "";
+                    opt.textContent = "No asset types found in the organization";
+                    opt.disabled = true;
+                    opt.selected = true;
+                    typeSelect.appendChild(opt);
+                } else {
+                    var placeholder = document.createElement("option");
+                    placeholder.value = "";
+                    placeholder.textContent = "-- Select Asset Type --";
+                    placeholder.disabled = true;
+                    placeholder.selected = true;
+                    typeSelect.appendChild(placeholder);
+                    types.forEach(function(t) {
+                        var o = document.createElement("option");
+                        o.value = t.id;
+                        o.textContent = t.name;
+                        typeSelect.appendChild(o);
+                    });
+                }
+            });
+    }
+
+    // === SUPER ADMIN EDIT TRAY ===
+    function toggleEditTray(trayId, userId, deptId) {
+        var tray = document.getElementById(trayId);
+        if (!tray) return;
+
+        var isOpen = tray.classList.contains("open");
+
+        // Close all open edit trays
+        var allEditTrays = document.querySelectorAll(".edit-tray");
+        for (var i = 0; i < allEditTrays.length; i++) {
+            allEditTrays[i].classList.remove("open");
+        }
+
+        if (!isOpen) {
+            tray.classList.add("open");
+
+            // Set initial scope state based on current department_id
+            var scopeGlobal = document.getElementById("edit_scope_global_" + userId);
+            var scopeDept = document.getElementById("edit_scope_dept_" + userId);
+            var editDeptGroup = document.getElementById("edit-dept-group-" + userId);
+            var editDeptSelect = document.getElementById("edit_department_id_" + userId);
+
+            if (deptId) {
+                scopeDept.checked = true;
+                editDeptGroup.style.display = "flex";
+                editDeptSelect.value = deptId;
+            } else {
+                scopeGlobal.checked = true;
+                editDeptGroup.style.display = "none";
+            }
+
+            // Auto-fetch asset types if dept_id is available
+            var typeSelect = document.getElementById("edit_asset_type_" + userId);
+            var assetSelect = document.getElementById("edit_asset_id_" + userId);
+
+            if (deptId) {
+                fetch("/admin/api/get-assets-helpers?department_id=" + deptId)
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        var types = data.asset_types || [];
+                        typeSelect.innerHTML = "";
+                        if (types.length === 0) {
+                            var opt = document.createElement("option");
+                            opt.value = "";
+                            opt.textContent = "No asset types found for this department";
+                            opt.disabled = true;
+                            opt.selected = true;
+                            typeSelect.appendChild(opt);
+                        } else {
+                            var placeholder = document.createElement("option");
+                            placeholder.value = "";
+                            placeholder.textContent = "-- Select Asset Type --";
+                            placeholder.disabled = true;
+                            placeholder.selected = true;
+                            typeSelect.appendChild(placeholder);
+                            types.forEach(function(t) {
+                                var o = document.createElement("option");
+                                o.value = t.id;
+                                o.textContent = t.name;
+                                typeSelect.appendChild(o);
+                            });
+                        }
+                    });
+            } else {
+                loadAllAssetTypes(userId, true);
+            }
+
+            // Reset asset selector
+            assetSelect.innerHTML = '<option value="" disabled selected>-- Select Asset --</option>';
+
+            // Focus first editable input
+            var fnInput = document.getElementById("edit_fn_" + userId);
+            if (fnInput) fnInput.focus();
+        }
+    }
+
+    function handleEditScopeChange(radio, userId) {
+        var deptGroup = document.getElementById("edit-dept-group-" + userId);
+        var deptSelect = document.getElementById("edit_department_id_" + userId);
+
+        if (radio.value === "departmental") {
+            deptGroup.style.display = "flex";
+            deptSelect.required = true;
+        } else {
+            deptGroup.style.display = "none";
+            deptSelect.required = false;
+            deptSelect.value = "";
+            loadAllAssetTypes(userId, true);
+        }
+    }
+
+    function handleEditAssetTypeChange(select, userId) {
+        var typeId = select.value;
+        var assetSelect = document.getElementById("edit_asset_id_" + userId);
+        var deptSelect = document.getElementById("edit_department_id_" + userId);
+        var deptId = deptSelect ? deptSelect.value : "";
+
+        assetSelect.innerHTML = "";
+
+        if (!typeId) {
+            var ph = document.createElement("option");
+            ph.value = "";
+            ph.textContent = "-- Select Asset --";
+            ph.disabled = true;
+            ph.selected = true;
+            assetSelect.appendChild(ph);
+            return;
+        }
+
+        var url = "/admin/api/get-assets-helpers?asset_type_id=" + typeId;
+        if (deptId) {
+            url += "&department_id=" + deptId;
+        }
+
+        fetch(url)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var assets = data.assets || [];
+                if (assets.length === 0) {
+                    var opt = document.createElement("option");
+                    opt.value = "";
+                    opt.textContent = "No unassigned assets available";
+                    opt.disabled = true;
+                    opt.selected = true;
+                    assetSelect.appendChild(opt);
+                } else {
+                    var placeholder = document.createElement("option");
+                    placeholder.value = "";
+                    placeholder.textContent = "-- Select Asset --";
+                    placeholder.disabled = true;
+                    placeholder.selected = true;
+                    assetSelect.appendChild(placeholder);
+                    assets.forEach(function(a) {
+                        var o = document.createElement("option");
+                        o.value = a.id;
+                        o.textContent = a.asset_id + " \u2014 " + a.name;
+                        assetSelect.appendChild(o);
+                    });
+                }
+            });
+    }
+
+    // Close modals on overlay click
+    document.querySelectorAll(".modal-overlay").forEach(function(overlay) {
+        overlay.addEventListener("click", function(e) {
+            if (e.target === this) {
+                this.classList.remove("active");
+            }
+        });
+    });
+
+    // Auto-dismiss flash messages after 6 seconds
+    setTimeout(function() {
+        var flashes = document.querySelectorAll(".flash-msg");
+        for (var i = 0; i < flashes.length; i++) {
+            flashes[i].style.transition = "opacity 0.3s";
+            flashes[i].style.opacity = "0";
+            (function(el) { setTimeout(function() { el.remove(); }, 300); })(flashes[i]);
+        }
+    }, 6000);
+</script>
+</body>
+</html>

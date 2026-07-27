@@ -34,7 +34,7 @@ from typing import Optional
 # ---------------------------------------------------------------------------
 
 _DEFAULTS = {
-    "AUTH_PROVIDER": "LOCAL",
+    "AUTH_PROVIDER": "LDAP",
     "MFA_ENABLED": False,
     "OTP_EXPIRY_MINUTES": 10,
     "OTP_LENGTH": 6,

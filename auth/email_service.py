@@ -21,12 +21,66 @@ Safety guarantees
 - No ``append()``, ``BCC``, ``CC``, or recipient list mutation.
 """
 import logging
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from flask import current_app
 from flask_mail import Message
 
+from auth.database import get_db
+
 logger = logging.getLogger("eam.email")
+
+
+def get_smtp_config() -> Dict[str, str]:
+    """
+    Read SMTP settings from the ``system_settings`` database table.
+
+    Falls back to Flask ``app.config`` values (loaded from ``.env``) when
+    a key is missing from the database.
+
+    Returns
+    -------
+    dict
+        Keys: ``MAIL_SERVER``, ``MAIL_PORT``, ``MAIL_USERNAME``,
+        ``MAIL_PASSWORD``, ``MAIL_DEFAULT_SENDER``.
+    """
+    defaults = {
+        "MAIL_SERVER": current_app.config.get("MAIL_SERVER", ""),
+        "MAIL_PORT": str(current_app.config.get("MAIL_PORT", "")),
+        "MAIL_USERNAME": current_app.config.get("MAIL_USERNAME", ""),
+        "MAIL_PASSWORD": current_app.config.get("MAIL_PASSWORD", ""),
+        "MAIL_DEFAULT_SENDER": current_app.config.get("MAIL_DEFAULT_SENDER", ""),
+    }
+    try:
+        conn = get_db()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT key, value FROM system_settings WHERE key IN (%s,%s,%s,%s,%s)",
+                tuple(defaults.keys()),
+            )
+            rows = cursor.fetchall()
+            for key, value in rows:
+                if value:
+                    defaults[key] = value
+        finally:
+            conn.close()
+    except Exception as exc:
+        logger.warning("Could not read system_settings for SMTP: %s", exc)
+    return defaults
+
+
+def apply_smtp_config() -> None:
+    """
+    Load SMTP settings from the database and push them into
+    ``current_app.config`` so Flask-Mail uses the latest values.
+    """
+    cfg = get_smtp_config()
+    current_app.config["MAIL_SERVER"] = cfg["MAIL_SERVER"]
+    current_app.config["MAIL_PORT"] = int(cfg["MAIL_PORT"] or "0")
+    current_app.config["MAIL_USERNAME"] = cfg["MAIL_USERNAME"]
+    current_app.config["MAIL_PASSWORD"] = cfg["MAIL_PASSWORD"]
+    current_app.config["MAIL_DEFAULT_SENDER"] = cfg["MAIL_DEFAULT_SENDER"]
 
 
 # ---------------------------------------------------------------------------
@@ -107,6 +161,15 @@ def send_email(
 
     assert len(recipients) == 1, f"send_email must have exactly one recipient, got {len(recipients)}"
     recipient = recipients[0]
+
+    apply_smtp_config()
+    if not current_app.config.get("MAIL_SERVER") or not current_app.config.get("MAIL_USERNAME"):
+        logger.error("SMTP is not configured. Cannot send email to %s.", recipient)
+        raise RuntimeError(
+            "Email is not configured. "
+            "Please configure SMTP settings in Admin > Email Config."
+        )
+
     logger.info("Preparing to send email: subject='%s', recipient='%s'", subject, recipient)
 
     msg = Message(

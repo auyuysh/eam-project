@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Asset Reports — EAM</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Poppins', sans-serif; background: #f5f6fa; color: #333; }
+        .navbar { background: #1a1a2e; color: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; height: 56px; }
+        .navbar h2 { font-size: 18px; }
+        .nav-right { display: flex; gap: 16px; align-items: center; font-size: 14px; color: #aaa; }
+        .nav-right a { color: #aaa; text-decoration: none; }
+        .nav-right a:hover { color: white; }
+        .main-layout { display: flex; min-height: calc(100vh - 56px); }
+        .sidebar { width: 240px; background: #1a1a2e; color: white; display: flex; flex-direction: column; flex-shrink: 0; border-top: 1px solid #2e2e4f; }
+        .sidebar-menu { list-style: none; padding: 20px 0; margin: 0; }
+        .menu-section { padding: 12px 24px 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; }
+        .menu-item { display: block; padding: 10px 24px; color: #d1d5db; text-decoration: none; font-size: 14px; transition: all 0.2s ease; cursor: pointer; }
+        .menu-item:hover, .menu-item.active { background: rgba(255,255,255,0.05); color: white; }
+        .menu-has-submenu { position: relative; }
+        .submenu-toggle { display: flex; justify-content: space-between; align-items: center; padding: 10px 24px; color: #d1d5db; font-size: 14px; cursor: pointer; transition: all 0.2s ease; }
+        .submenu-toggle:hover { background: rgba(255,255,255,0.05); color: white; }
+        .submenu { list-style: none; padding-left: 16px; display: none; }
+        .submenu.open { display: block; }
+        .submenu .menu-item { padding: 8px 24px; font-size: 13px; }
+        .arrow { font-size: 10px; transition: transform 0.2s; }
+        .content-area { flex-grow: 1; padding: 32px; background: #f5f6fa; overflow-y: auto; }
+
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .page-header h1 { font-size: 24px; }
+        .page-subtitle { color: #888; font-size: 14px; margin-bottom: 32px; }
+
+        .count-badge { display: inline-flex; flex-direction: column; align-items: center; background: #5c6bc0; color: white; padding: 12px 24px; border-radius: 10px; min-width: 120px; text-align: center; }
+        .count-badge .count-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.85; margin-bottom: 4px; }
+        .count-badge .count-value { font-size: 28px; font-weight: 700; line-height: 1; }
+
+        .filter-card { background: white; border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px; }
+        .filter-card h2 { font-size: 14px; font-weight: 600; color: #1a1a2e; margin-bottom: 16px; }
+        .filter-row { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
+        .filter-group { display: flex; flex-direction: column; }
+        .filter-group label { font-size: 11px; font-weight: 600; color: #555; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.3px; }
+        .filter-group select, .filter-group input[type="date"] { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: inherit; background: white; min-width: 160px; }
+        .filter-group select:focus, .filter-group input[type="date"]:focus { outline: none; border-color: #5c6bc0; }
+        .filter-actions { display: flex; gap: 8px; align-items: flex-end; }
+        .btn { padding: 8px 18px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; text-decoration: none; display: inline-block; font-family: inherit; transition: 0.2s; }
+        .btn-primary { background: #5c6bc0; color: white; }
+        .btn-primary:hover { background: #3f51b5; }
+        .btn-cancel { background: #f0f0f0; color: #555; }
+        .btn-cancel:hover { background: #e0e0e0; }
+
+        .data-card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; }
+        .data-table { width: 100%; border-collapse: collapse; text-align: left; }
+        .data-table th, .data-table td { padding: 12px 16px; border-bottom: 1px solid #eee; font-size: 13px; }
+        .data-table th { background: #f9fafb; font-weight: 600; color: #4b5563; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .data-table tbody tr:hover { background: #f9fafb; }
+
+        .badge { display: inline-block; padding: 3px 10px; font-size: 11px; font-weight: 500; border-radius: 20px; text-transform: uppercase; }
+        .badge-type { background: #e3f2fd; color: #1565c0; }
+        .badge-role { background: #f3e5f5; color: #7b1fa2; }
+
+        .empty-state { text-align: center; padding: 60px 20px; color: #999; }
+        .empty-state svg { width: 64px; height: 64px; margin-bottom: 16px; opacity: 0.4; }
+        .empty-state p { font-size: 15px; margin-top: 8px; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>Enterprise Asset Management</h2>
+    <div class="nav-right">
+        <a href="/profile">{{ username }}</a>
+        <a href="/logout">Logout</a>
+    </div>
+</div>
+
+<div class="main-layout">
+    <div class="sidebar">
+        <ul class="sidebar-menu">
+            <li><a href="/dashboard" class="menu-item">Dashboard</a></li>
+            <li><a href="/profile" class="menu-item">My Profile</a></li>
+
+            {% if is_super_admin or 'users.view' in user_permissions or 'roles.view' in user_permissions %}
+            <li class="menu-section">Admin</li>
+            <li class="menu-has-submenu">
+                <div class="submenu-toggle" onclick="toggleSubmenu(this)">
+                    <span>Users &amp; Roles</span>
+                    <span class="arrow">&#9662;</span>
+                </div>
+                <ul class="submenu">
+                    {% if is_super_admin or 'users.view' in user_permissions %}
+                    <li><a href="/admin/users" class="menu-item">Users</a></li>
+                    {% endif %}
+                    {% if is_super_admin or 'roles.view' in user_permissions %}
+                    <li><a href="/admin/roles" class="menu-item">Roles</a></li>
+                    {% endif %}
+                </ul>
+            </li>
+            {% endif %}
+            <li class="menu-section">Service Desk</li>
+            {% include 'partials/navbar.html' %}
+            <li class="menu-section">Incident Management</li>
+            {% include 'partials/incidents_navbar.html' %}
+            {% if is_super_admin or 'assets.view' in user_permissions %}
+            <li><a href="/admin/reports" class="menu-item active">Reports</a></li>
+            {% endif %}
+            {% if is_super_admin %}
+            <li><a href="/admin/ldap" class="menu-item">LDAP Config</a></li>
+            <li><a href="/admin/email" class="menu-item">Email Config</a></li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <div class="content-area">
+        <div class="page-header">
+            <h1>Asset Reports</h1>
+            <div class="count-badge">
+                <span class="count-label">Total Assets Under Query</span>
+                <span class="count-value">{{ total_count }}</span>
+            </div>
+        </div>
+        <p class="page-subtitle">Audit and filter inventory assets across departments, types, and assigned personnel.</p>
+
+        <div class="filter-card">
+            <h2>Filter Parameters</h2>
+            <form method="GET" action="/admin/reports" id="filterForm">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label for="department_id">Department</label>
+                        <select id="department_id" name="department_id">
+                            <option value="">All Departments</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.id }}" {% if f_department_id == dept.id %}selected{% endif %}>{{ dept.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="asset_type">Asset Type</label>
+                        <select id="asset_type" name="asset_type">
+                            <option value="">All Types</option>
+                            {% for atype in asset_types %}
+                            <option value="{{ atype }}" {% if f_asset_type == atype %}selected{% endif %}>{{ atype }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="assigned_role">Assigned Role</label>
+                        <select id="assigned_role" name="assigned_role">
+                            <option value="">All Roles</option>
+                            {% for role in roles_list %}
+                            <option value="{{ role.name }}" {% if f_assigned_role == role.name %}selected{% endif %}>{{ role.display_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="start_date">From</label>
+                        <input type="date" id="start_date" name="start_date" value="{{ f_start_date }}">
+                    </div>
+                    <div class="filter-group">
+                        <label for="end_date">To</label>
+                        <input type="date" id="end_date" name="end_date" value="{{ f_end_date }}">
+                    </div>
+                    <div class="filter-actions">
+                        <button type="submit" class="btn btn-primary">Generate Report</button>
+                        <a href="/admin/reports" class="btn btn-cancel">Clear Filters</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        {% if assets %}
+        <div class="data-card">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Asset ID</th>
+                        <th>Asset Name</th>
+                        <th>Type</th>
+                        <th>Department</th>
+                        <th>Assigned User</th>
+                        <th>Role</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in assets %}
+                    <tr>
+                        <td><strong>{{ a.asset_id }}</strong></td>
+                        <td>{{ a.name }}</td>
+                        <td><span class="badge badge-type">{{ a.type_name }}</span></td>
+                        <td>{{ a.dept_name }}</td>
+                        <td>{{ a.assigned_user if a.assigned_user else '—' }}</td>
+                        <td>{% if a.assigned_role %}<span class="badge badge-role">{{ a.assigned_role }}</span>{% else %}—{% endif %}</td>
+                        <td>{{ a.created_at[:10] if a.created_at else '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="data-card">
+            <div class="empty-state">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m6 4.125l2.25 2.25m0 0l2.25 2.25M12 13.875l2.25-2.25M12 13.875l-2.25 2.25M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                </svg>
+                <h3>No Matching Assets Found</h3>
+                <p>Adjust the filter parameters above or clear them to view all assets.</p>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+
+<script>
+function toggleSubmenu(el) {
+    var submenu = el.nextElementSibling;
+    submenu.classList.toggle('open');
+    var arrow = el.querySelector('.arrow');
+    arrow.innerHTML = submenu.classList.contains('open') ? '&#9652;' : '&#9662;';
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Raise Ticket — EAM Service Desk</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Poppins', sans-serif; background: #f5f6fa; color: #333; }
+        .navbar { background: #1a1a2e; color: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; height: 56px; }
+        .navbar h2 { font-size: 18px; }
+        .nav-right { display: flex; gap: 16px; align-items: center; font-size: 14px; color: #aaa; }
+        .nav-right a { color: #aaa; text-decoration: none; }
+        .nav-right a:hover { color: white; }
+        .main-layout { display: flex; min-height: calc(100vh - 56px); }
+        .sidebar { width: 240px; background: #1a1a2e; color: white; display: flex; flex-direction: column; flex-shrink: 0; border-top: 1px solid #2e2e4f; }
+        .sidebar-menu { list-style: none; padding: 20px 0; margin: 0; }
+        .menu-section { padding: 12px 24px 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; }
+        .menu-item { display: block; padding: 10px 24px; color: #d1d5db; text-decoration: none; font-size: 14px; transition: all 0.2s ease; cursor: pointer; }
+        .menu-item:hover, .menu-item.active { background: rgba(255,255,255,0.05); color: white; }
+        .menu-has-submenu { position: relative; }
+        .submenu-toggle { display: flex; justify-content: space-between; align-items: center; padding: 10px 24px; color: #d1d5db; font-size: 14px; cursor: pointer; transition: all 0.2s ease; }
+        .submenu-toggle:hover { background: rgba(255,255,255,0.05); color: white; }
+        .submenu { list-style: none; padding-left: 16px; display: none; }
+        .submenu.open { display: block; }
+        .submenu .menu-item { padding: 8px 24px; font-size: 13px; }
+        .arrow { font-size: 10px; transition: transform 0.2s; }
+        .content-area { flex-grow: 1; padding: 32px; background: #f5f6fa; overflow-y: auto; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .page-header h1 { font-size: 24px; }
+        .page-subtitle { color: #888; font-size: 14px; margin-bottom: 32px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; text-decoration: none; display: inline-block; }
+        .btn-primary { background: #5c6bc0; color: white; }
+        .btn-primary:hover { background: #3f51b5; }
+        .btn-cancel { background: #f0f0f0; color: #555; }
+        .btn-cancel:hover { background: #e0e0e0; }
+        .form-card { background: white; border-radius: 12px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); max-width: 700px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #555; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; box-sizing: border-box; font-family: inherit; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #5c6bc0; }
+        .form-group textarea { resize: vertical; min-height: 100px; }
+        .form-group input[readonly] { background: #f5f5f5; color: #666; }
+        .form-hint { font-size: 12px; color: #888; margin-top: 4px; }
+        .flash-messages { margin-bottom: 20px; }
+        .flash { padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 10px; }
+        .flash-success { background: #e8f5e9; color: #2e7d32; }
+        .flash-danger { background: #ffebee; color: #c62828; }
+        .flash-warning { background: #fff3e0; color: #e65100; }
+        .asset-notice { background: #e3f2fd; color: #1565c0; padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-top: 8px; }
+        .asset-notice strong { font-weight: 600; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>Enterprise Asset Management</h2>
+    <div class="nav-right">
+        <a href="/profile">{{ current_user.first_name }}</a>
+        <a href="/logout">Logout</a>
+    </div>
+</div>
+
+<div class="main-layout">
+    <!-- Left Navigation Sidebar -->
+    <div class="sidebar">
+        <ul class="sidebar-menu">
+            <li><a href="/dashboard" class="menu-item">Dashboard</a></li>
+            <li><a href="/profile" class="menu-item">My Profile</a></li>
+            
+            {% if is_super_admin or 'users.view' in user_permissions or 'roles.view' in user_permissions %}
+            <li class="menu-section">Admin</li>
+            <li class="menu-has-submenu">
+                <div class="submenu-toggle" onclick="toggleSubmenu(this)">
+                    <span>Users &amp; Roles</span>
+                    <span class="arrow">&#9662;</span>
+                </div>
+                <ul class="submenu">
+                    {% if is_super_admin or 'users.view' in user_permissions %}
+                    <li><a href="/admin/users" class="menu-item">Users</a></li>
+                    {% endif %}
+                    {% if is_super_admin or 'roles.view' in user_permissions %}
+                    <li><a href="/admin/roles" class="menu-item">Roles</a></li>
+                    {% endif %}
+                </ul>
+            </li>
+            {% endif %}
+            <li class="menu-section">Service Desk</li>
+            {% include 'partials/navbar.html' %}
+            <li class="menu-section">Incident Management</li>
+            {% include 'partials/incidents_navbar.html' %}
+            {% if is_super_admin or 'assets.view' in user_permissions %}
+            <li><a href="/admin/reports" class="menu-item">Reports</a></li>
+            {% endif %}
+            {% if is_super_admin %}
+            <li><a href="/admin/ldap" class="menu-item">LDAP Config</a></li>
+            <li><a href="/admin/email" class="menu-item">Email Config</a></li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <!-- Content Area -->
+    <div class="content-area">
+
+    <div class="page-header">
+        <h1>Raise Ticket</h1>
+    </div>
+    <p class="page-subtitle">Create a new service desk ticket for support requests, issues, or incidents.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-messages">
+            {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endwith %}
+
+    <div class="form-card">
+        <form method="POST" action="/tickets/new">
+            <div class="form-group">
+                <label>Ticket Type *</label>
+                <select name="ticket_type" required>
+                    <option value="">Select ticket type...</option>
+                    <option value="incident" {% if form_data and form_data.get('ticket_type') == 'incident' %}selected{% endif %}>Incident</option>
+                    <option value="service_request" {% if form_data and form_data.get('ticket_type') == 'service_request' %}selected{% endif %}>Service Request</option>
+                    <option value="problem" {% if form_data and form_data.get('ticket_type') == 'problem' %}selected{% endif %}>Problem</option>
+                    <option value="change_request" {% if form_data and form_data.get('ticket_type') == 'change_request' %}selected{% endif %}>Change Request</option>
+                    <option value="maintenance" {% if form_data and form_data.get('ticket_type') == 'maintenance' %}selected{% endif %}>Maintenance</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Department *</label>
+                <select name="department_id" required>
+                    <option value="">Select department...</option>
+                    {% for dept in departments %}
+                    <option value="{{ dept['id'] }}" {% if form_data and form_data.get('department_id') == dept['id']|string %}selected{% endif %}>{{ dept['name'] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Title *</label>
+                <input type="text" name="title" value="{{ form_data.get('title', '') if form_data else '' }}" placeholder="Brief description of the issue" required>
+            </div>
+
+            <div class="form-group">
+                <label>Description *</label>
+                <textarea name="description" placeholder="Detailed description of the issue or request" required>{{ form_data.get('description', '') if form_data else '' }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Associated Asset</label>
+                {% if user_assets|length == 1 %}
+                    <input type="text" readonly value="{{ user_assets[0][1] }} - {{ user_assets[0][2] }} ({{ user_assets[0][4] }})">
+                    <input type="hidden" name="asset_id" value="{{ user_assets[0][0] }}">
+                    <div class="asset-notice">
+                        <strong>Auto-selected:</strong> This is the only asset assigned to your account.
+                    </div>
+                {% elif user_assets|length > 1 %}
+                    <select name="asset_id">
+                        <option value="">Select an asset (optional)...</option>
+                        {% for asset in user_assets %}
+                        <option value="{{ asset[0] }}" {% if form_data and form_data.get('asset_id') == asset[0]|string %}selected{% endif %}>{{ asset[1] }} - {{ asset[2] }} ({{ asset[4] }})</option>
+                        {% endfor %}
+                    </select>
+                {% else %}
+                    <input type="text" readonly value="No assets currently assigned to your account" style="background: #f5f5f5; color: #888;">
+                    <div class="asset-notice">
+                        <strong>Note:</strong> You do not have any assets assigned to your account. Please contact your administrator if you need to associate an asset with this ticket.
+                    </div>
+                {% endif %}
+            </div>
+
+            <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px;">
+                <a href="/dashboard" class="btn btn-cancel">Cancel</a>
+                <button type="submit" class="btn btn-primary">Submit Ticket</button>
+            </div>
+        </form>
+    </div>
+
+    </div><!-- /content-area -->
+</div><!-- /main-layout -->
+
+<script>
+    function toggleSubmenu(el) {
+        var submenu = el.nextElementSibling;
+        var arrow = el.querySelector('.arrow');
+        submenu.classList.toggle('open');
+        arrow.style.transform = submenu.classList.contains('open') ? 'rotate(180deg)' : '';
+    }
+
+    // Auto-open the Service Desk submenu
+    document.querySelectorAll('.submenu-toggle').forEach(function(toggle) {
+        if (toggle.textContent.trim().includes('Service Desk')) {
+            var submenu = toggle.nextElementSibling;
+            if (submenu) {
+                submenu.classList.add('open');
+                var arrow = toggle.querySelector('.arrow');
+                if (arrow) arrow.style.transform = 'rotate(180deg)';
+            }
+        }
+    });
+</script>
+
+</body>
+</html>

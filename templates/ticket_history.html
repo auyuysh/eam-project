@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>My History — EAM Service Desk</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Poppins', sans-serif; background: #f5f6fa; color: #333; }
+        .navbar { background: #1a1a2e; color: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; height: 56px; }
+        .navbar h2 { font-size: 18px; }
+        .nav-right { display: flex; gap: 16px; align-items: center; font-size: 14px; color: #aaa; }
+        .nav-right a { color: #aaa; text-decoration: none; }
+        .nav-right a:hover { color: white; }
+        .main-layout { display: flex; min-height: calc(100vh - 56px); }
+        .sidebar { width: 240px; background: #1a1a2e; color: white; display: flex; flex-direction: column; flex-shrink: 0; border-top: 1px solid #2e2e4f; }
+        .sidebar-menu { list-style: none; padding: 20px 0; margin: 0; }
+        .menu-section { padding: 12px 24px 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; }
+        .menu-item { display: block; padding: 10px 24px; color: #d1d5db; text-decoration: none; font-size: 14px; transition: all 0.2s ease; cursor: pointer; }
+        .menu-item:hover, .menu-item.active { background: rgba(255,255,255,0.05); color: white; }
+        .menu-has-submenu { position: relative; }
+        .submenu-toggle { display: flex; justify-content: space-between; align-items: center; padding: 10px 24px; color: #d1d5db; font-size: 14px; cursor: pointer; transition: all 0.2s ease; }
+        .submenu-toggle:hover { background: rgba(255,255,255,0.05); color: white; }
+        .submenu { list-style: none; padding-left: 16px; display: none; }
+        .submenu.open { display: block; }
+        .submenu .menu-item { padding: 8px 24px; font-size: 13px; }
+        .arrow { font-size: 10px; transition: transform 0.2s; }
+        .content-area { flex-grow: 1; padding: 32px; background: #f5f6fa; overflow-y: auto; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .page-header h1 { font-size: 24px; }
+        .page-subtitle { color: #888; font-size: 14px; margin-bottom: 24px; }
+        .tickets-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
+        .ticket-card { background: white; border-radius: 12px; padding: 20px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 4px solid #5c6bc0; display: flex; flex-direction: column; gap: 10px; transition: box-shadow 0.2s; }
+        .ticket-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+        .ticket-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+        .ticket-title { font-size: 15px; font-weight: 600; color: #1a1a2e; line-height: 1.3; }
+        .ticket-id { font-size: 12px; color: #888; font-weight: 500; }
+        .status-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: white; white-space: nowrap; }
+        .ticket-desc { font-size: 13px; color: #666; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .ticket-meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: #888; }
+        .ticket-meta span { display: flex; align-items: center; gap: 4px; }
+        .ticket-meta strong { color: #555; font-weight: 500; }
+        .ticket-card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; padding-top: 10px; border-top: 1px solid #f0f0f0; }
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; text-decoration: none; display: inline-block; transition: all 0.15s; }
+        .btn-primary { background: #5c6bc0; color: white; }
+        .btn-primary:hover { background: #3f51b5; }
+        .btn-success { background: #2e7d32; color: white; }
+        .btn-success:hover { background: #1b5e20; }
+        .btn-cancel { background: #f0f0f0; color: #555; }
+        .btn-cancel:hover { background: #e0e0e0; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #aaa; }
+        .empty-state p { font-size: 15px; margin-bottom: 16px; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: white; border-radius: 12px; padding: 32px; width: 560px; max-width: 90vw; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+        .modal h2 { font-size: 18px; margin-bottom: 20px; color: #1a1a2e; }
+        .modal-detail { margin-bottom: 12px; }
+        .modal-detail label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 4px; }
+        .modal-detail .value { font-size: 14px; color: #333; line-height: 1.5; }
+        .modal-detail .value.desc { white-space: pre-wrap; }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid #f0f0f0; }
+        .flash-messages { margin-bottom: 20px; }
+        .flash { padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 10px; }
+        .flash-success { background: #e8f5e9; color: #2e7d32; }
+        .flash-danger { background: #ffebee; color: #c62828; }
+        .timeline { margin-top: 12px; }
+        .timeline-item { display: flex; gap: 10px; align-items: center; padding: 6px 0; font-size: 12px; }
+        .timeline-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .timeline-status { font-weight: 500; }
+        .timeline-date { color: #888; margin-left: auto; }
+        .verify-notice { background: #e8f5e9; color: #2e7d32; padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: 500; }
+        .garbage-notice { background: #ffebee; color: #c62828; padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: 500; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>Enterprise Asset Management</h2>
+    <div class="nav-right">
+        <a href="/profile">{{ current_user.first_name }}</a>
+        <a href="/logout">Logout</a>
+    </div>
+</div>
+
+<div class="main-layout">
+    <div class="sidebar">
+        <ul class="sidebar-menu">
+            <li><a href="/dashboard" class="menu-item">Dashboard</a></li>
+            <li><a href="/profile" class="menu-item">My Profile</a></li>
+            {% if is_super_admin or 'users.view' in user_permissions or 'roles.view' in user_permissions %}
+            <li class="menu-section">Admin</li>
+            <li class="menu-has-submenu">
+                <div class="submenu-toggle" onclick="toggleSubmenu(this)">
+                    <span>Users &amp; Roles</span>
+                    <span class="arrow">&#9662;</span>
+                </div>
+                <ul class="submenu">
+                    {% if is_super_admin or 'users.view' in user_permissions %}
+                    <li><a href="/admin/users" class="menu-item">Users</a></li>
+                    {% endif %}
+                    {% if is_super_admin or 'roles.view' in user_permissions %}
+                    <li><a href="/admin/roles" class="menu-item">Roles</a></li>
+                    {% endif %}
+                </ul>
+            </li>
+            {% endif %}
+            <li class="menu-section">Service Desk</li>
+            {% include 'partials/navbar.html' %}
+            <li class="menu-section">Incident Management</li>
+            {% include 'partials/incidents_navbar.html' %}
+            {% if is_super_admin or 'assets.view' in user_permissions %}
+            <li><a href="/admin/reports" class="menu-item">Reports</a></li>
+            {% endif %}
+            {% if is_super_admin %}
+            <li><a href="/admin/ldap" class="menu-item">LDAP Config</a></li>
+            <li><a href="/admin/email" class="menu-item">Email Config</a></li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <div class="content-area">
+        <div class="page-header"><h1>My History</h1></div>
+        <p class="page-subtitle">Tickets you have raised and their current status.</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                <div class="flash flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        {% if tickets %}
+        <div class="tickets-grid">
+            {% for t in tickets %}
+            <div class="ticket-card" style="border-left-color: {{ status_colors.get(t.status, '#5c6bc0') }};">
+                <div class="ticket-card-header">
+                    <div>
+                        <span class="ticket-id">#{{ t.id }}</span>
+                        <div class="ticket-title">{{ t.title }}</div>
+                    </div>
+                    <span class="status-badge" style="background: {{ status_colors.get(t.status, '#5c6bc0') }};">{{ status_labels.get(t.status, t.status) }}</span>
+                </div>
+                <div class="ticket-desc">{{ t.description }}</div>
+                <div class="ticket-meta">
+                    <span><strong>Asset:</strong> {{ t.asset_code or 'N/A' }}</span>
+                    <span><strong>Dept:</strong> {{ t.dept_name or 'N/A' }}</span>
+                    <span><strong>Technician:</strong> {{ t.tech_name }}</span>
+                </div>
+                {% if t.status == 'resolved' %}
+                <div class="verify-notice">Ready for verification. Please test your device.</div>
+                {% elif t.status == 'garbage' %}
+                <div class="garbage-notice">This asset has been declared unrepairable.</div>
+                {% endif %}
+                <div class="ticket-card-footer">
+                    <span style="font-size:11px;color:#888;">{{ t.status_date[:10] if t.status_date else '' }}</span>
+                    <div style="display:flex;gap:6px;">
+                        <button class="btn btn-primary btn-sm" onclick="viewTicket({{ t.id }})">View</button>
+                        {% if t.status == 'resolved' %}
+                        <button class="btn btn-success btn-sm" onclick="verifyTicket({{ t.id }})">Mark as Verified</button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state"><p>You have not raised any tickets yet.</p></div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="modal-overlay" id="detailModal">
+    <div class="modal">
+        <h2 id="modalTitle">Ticket Details</h2>
+        <div id="modalBody"></div>
+        <div class="modal-actions">
+            <button class="btn btn-cancel" onclick="closeModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleSubmenu(el) {
+    var submenu = el.nextElementSibling;
+    var arrow = el.querySelector('.arrow');
+    submenu.classList.toggle('open');
+    arrow.style.transform = submenu.classList.contains('open') ? 'rotate(180deg)' : '';
+}
+document.querySelectorAll('.submenu-toggle').forEach(function(toggle) {
+    if (toggle.textContent.trim().includes('Service Desk')) {
+        var submenu = toggle.nextElementSibling;
+        if (submenu) { submenu.classList.add('open'); var arrow = toggle.querySelector('.arrow'); if (arrow) arrow.style.transform = 'rotate(180deg)'; }
+    }
+});
+
+var statusColors = {{ status_colors | tojson }};
+var statusLabels = {{ status_labels | tojson }};
+
+function verifyTicket(id) {
+    if (!confirm('Confirm that the issue has been resolved and the device is working properly?')) return;
+    var fd = new FormData();
+    fetch('/tickets/' + id + '/verify', { method: 'POST', body: fd })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (d.success) { location.reload(); }
+        else { alert(d.error || 'Verification failed'); }
+    })
+    .catch(function() { alert('Network error. Please try again.'); });
+}
+
+function viewTicket(id) {
+    fetch('/tickets/' + id + '/detail')
+    .then(function(r) { return r.json(); })
+    .then(function(t) {
+        var html = '';
+        html += '<div class="modal-detail"><label>Title</label><div class="value">' + t.title + '</div></div>';
+        html += '<div class="modal-detail"><label>Description</label><div class="value desc">' + t.description + '</div></div>';
+        html += '<div class="modal-detail"><label>Date Raised</label><div class="value">' + (t.created_at || '') + '</div></div>';
+        html += '<div class="modal-detail"><label>Asset</label><div class="value">' + (t.asset_code || 'N/A') + ' - ' + (t.asset_name || '') + '</div></div>';
+        html += '<div class="modal-detail"><label>Department</label><div class="value">' + (t.dept_name || 'N/A') + '</div></div>';
+        html += '<div class="modal-detail"><label>Employee</label><div class="value">' + (t.raiser_name || '') + '</div></div>';
+        html += '<div class="modal-detail"><label>Technician</label><div class="value">' + (t.tech_name || 'Unassigned') + '</div></div>';
+        html += '<div class="modal-detail"><label>Status</label><div class="value"><span class="status-badge" style="background:' + (statusColors[t.status] || '#5c6bc0') + ';">' + (statusLabels[t.status] || t.status) + '</span></div></div>';
+        if (t.history && t.history.length) {
+            html += '<div class="modal-detail"><label>Status Timeline</label><div class="timeline">';
+            t.history.forEach(function(h) {
+                html += '<div class="timeline-item"><div class="timeline-dot" style="background:' + (statusColors[h.status] || '#ccc') + ';"></div><span class="timeline-status">' + (statusLabels[h.status] || h.status) + '</span><span class="timeline-date">' + h.changed_at + '</span></div>';
+            });
+            html += '</div></div>';
+        }
+        document.getElementById('modalBody').innerHTML = html;
+        document.getElementById('detailModal').classList.add('active');
+    });
+}
+function closeModal() { document.getElementById('detailModal').classList.remove('active'); }
+document.getElementById('detailModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+</script>
+
+</body>
+</html>

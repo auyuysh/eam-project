@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>{{ inc.incident_code }} — Incident Detail</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Poppins', sans-serif; background: #f5f6fa; color: #333; }
+        .navbar { background: #1a1a2e; color: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; height: 56px; }
+        .navbar h2 { font-size: 18px; }
+        .nav-right { display: flex; gap: 16px; align-items: center; font-size: 14px; color: #aaa; }
+        .nav-right a { color: #aaa; text-decoration: none; }
+        .nav-right a:hover { color: white; }
+        .main-layout { display: flex; min-height: calc(100vh - 56px); }
+        .sidebar { width: 240px; background: #1a1a2e; color: white; display: flex; flex-direction: column; flex-shrink: 0; border-top: 1px solid #2e2e4f; }
+        .sidebar-menu { list-style: none; padding: 20px 0; margin: 0; }
+        .menu-section { padding: 12px 24px 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; }
+        .menu-item { display: block; padding: 10px 24px; color: #d1d5db; text-decoration: none; font-size: 14px; transition: all 0.2s ease; cursor: pointer; }
+        .menu-item:hover, .menu-item.active { background: rgba(255,255,255,0.05); color: white; }
+        .menu-has-submenu { position: relative; }
+        .submenu-toggle { display: flex; justify-content: space-between; align-items: center; padding: 10px 24px; color: #d1d5db; font-size: 14px; cursor: pointer; transition: all 0.2s ease; }
+        .submenu-toggle:hover { background: rgba(255,255,255,0.05); color: white; }
+        .submenu { list-style: none; padding-left: 16px; display: none; }
+        .submenu.open { display: block; }
+        .submenu .menu-item { padding: 8px 24px; font-size: 13px; }
+        .arrow { font-size: 10px; transition: transform 0.2s; }
+        .content-area { flex-grow: 1; padding: 32px; background: #f5f6fa; overflow-y: auto; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .page-header h1 { font-size: 24px; }
+        .page-subtitle { color: #888; font-size: 14px; margin-bottom: 24px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; text-decoration: none; display: inline-block; transition: all 0.15s; font-family: inherit; }
+        .btn-primary { background: #5c6bc0; color: white; }
+        .btn-primary:hover { background: #3f51b5; }
+        .btn-success { background: #2e7d32; color: white; }
+        .btn-success:hover { background: #1b5e20; }
+        .btn-danger { background: #e53935; color: white; }
+        .btn-danger:hover { background: #c62828; }
+        .btn-cancel { background: #f0f0f0; color: #555; }
+        .btn-cancel:hover { background: #e0e0e0; }
+        .btn-sm { padding: 6px 14px; font-size: 13px; }
+        .status-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: white; white-space: nowrap; }
+        .priority-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: white; white-space: nowrap; }
+        .flash-messages { margin-bottom: 20px; }
+        .flash { padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 10px; }
+        .flash-success { background: #e8f5e9; color: #2e7d32; }
+        .flash-danger { background: #ffebee; color: #c62828; }
+
+        .feedback-banner { background: #fff3e0; border-left: 4px solid #f57c00; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
+        .feedback-banner-title { font-size: 13px; font-weight: 600; color: #e65100; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .feedback-banner-text { font-size: 14px; color: #333; line-height: 1.5; }
+        .feedback-banner-meta { font-size: 12px; color: #888; margin-top: 8px; }
+
+        .review-form { display: flex; flex-direction: column; gap: 10px; max-width: 500px; }
+        .review-form textarea { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: inherit; min-height: 60px; resize: vertical; }
+        .review-form textarea:focus { outline: none; border-color: #5c6bc0; }
+        .review-form .review-actions { display: flex; gap: 8px; }
+
+        .incident-header { background: white; border-radius: 12px; padding: 24px 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+        .incident-header-left h2 { font-size: 18px; color: #1a1a2e; margin-bottom: 4px; }
+        .incident-header-left p { font-size: 13px; color: #888; }
+        .header-badges { display: flex; gap: 8px; flex-shrink: 0; }
+
+        .stepper { background: white; border-radius: 12px; padding: 28px 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px; }
+        .stepper-title { font-size: 15px; font-weight: 600; color: #1a1a2e; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #eee; }
+        .steps { display: flex; align-items: flex-start; position: relative; }
+        .step { flex: 1; text-align: center; position: relative; }
+        .step-dot-wrap { display: flex; justify-content: center; margin-bottom: 10px; }
+        .step-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: white; z-index: 1; border: 3px solid white; box-shadow: 0 0 0 2px #e0e0e0; }
+        .step.completed .step-dot { background: #2e7d32; box-shadow: 0 0 0 2px #2e7d32; }
+        .step.current .step-dot { background: #5c6bc0; box-shadow: 0 0 0 2px #5c6bc0; }
+        .step.future .step-dot { background: #ccc; box-shadow: 0 0 0 2px #ccc; }
+        .step-label { font-size: 11px; font-weight: 500; color: #888; line-height: 1.3; }
+        .step.completed .step-label { color: #2e7d32; }
+        .step.current .step-label { color: #5c6bc0; font-weight: 600; }
+        .step-connector { position: absolute; top: 14px; left: calc(50% + 18px); right: calc(-50% + 18px); height: 3px; background: #e0e0e0; z-index: 0; }
+        .step.completed .step-connector { background: #2e7d32; }
+        .step:last-child .step-connector { display: none; }
+
+        .section-card { background: white; border-radius: 12px; padding: 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px; }
+        .section-title { font-size: 16px; font-weight: 600; color: #1a1a2e; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #eee; }
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .info-item { }
+        .info-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 4px; }
+        .info-value { font-size: 14px; color: #333; line-height: 1.5; }
+        .info-value.desc { white-space: pre-wrap; line-height: 1.6; }
+
+        .timeline { position: relative; padding-left: 24px; }
+        .timeline::before { content: ''; position: absolute; left: 7px; top: 8px; bottom: 8px; width: 2px; background: #e0e0e0; }
+        .timeline-entry { position: relative; padding: 10px 0 10px 16px; }
+        .timeline-entry::before { content: ''; position: absolute; left: -20px; top: 16px; width: 10px; height: 10px; border-radius: 50%; background: #5c6bc0; border: 2px solid white; box-shadow: 0 0 0 2px #5c6bc0; z-index: 1; }
+        .timeline-entry .tl-step { font-weight: 600; font-size: 14px; color: #1a1a2e; }
+        .timeline-entry .tl-action { font-size: 13px; color: #555; margin: 4px 0; }
+        .timeline-entry .tl-change { font-size: 12px; color: #888; background: #f5f6fa; padding: 6px 10px; border-radius: 6px; margin: 4px 0; display: inline-block; }
+        .timeline-entry .tl-change .old { color: #c62828; text-decoration: line-through; }
+        .timeline-entry .tl-change .arrow-icon { margin: 0 6px; color: #999; }
+        .timeline-entry .tl-change .new { color: #2e7d32; }
+        .timeline-entry .tl-meta { font-size: 12px; color: #aaa; margin-top: 4px; }
+        .empty-timeline { text-align: center; color: #aaa; font-size: 14px; padding: 20px 0; }
+
+        .media-list { display: flex; flex-direction: column; gap: 8px; }
+        .media-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #f9fafb; border-radius: 8px; font-size: 13px; }
+        .media-item a { color: #5c6bc0; text-decoration: none; font-weight: 500; }
+        .media-item a:hover { text-decoration: underline; }
+        .media-meta { color: #888; font-size: 12px; margin-left: auto; }
+
+        .actions-bar { background: white; border-radius: 12px; padding: 24px 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+        .actions-bar-label { font-size: 13px; font-weight: 600; color: #1a1a2e; margin-right: 8px; }
+
+        .verify-form { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+        .verify-form .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .verify-form label { font-size: 12px; font-weight: 500; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+        .verify-form select, .verify-form textarea { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: inherit; }
+        .verify-form select:focus, .verify-form textarea:focus { outline: none; border-color: #5c6bc0; }
+        .verify-form textarea { min-height: 60px; resize: vertical; width: 300px; }
+
+        .back-link { display: inline-block; margin-top: 8px; color: #5c6bc0; text-decoration: none; font-size: 14px; font-weight: 500; }
+        .back-link:hover { text-decoration: underline; }
+
+        .section-card-header { display: flex; justify-content: space-between; align-items: center; }
+        .section-card-header .section-title { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+        .collapse-toggle { background: none; border: 1px solid #5c6bc0; color: #5c6bc0; padding: 5px 14px; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
+        .collapse-toggle:hover { background: #5c6bc0; color: white; }
+        .collapse-toggle .toggle-icon { transition: transform 0.2s; display: inline-block; }
+        .collapse-toggle.open .toggle-icon { transform: rotate(180deg); }
+        .collapse-body { overflow: hidden; max-height: 0; transition: max-height 0.3s ease; }
+        .collapse-body.show { max-height: 3000px; }
+        .collapse-body-inner { padding-top: 20px; }
+
+        .investigation-form .form-label { font-size: 13px; font-weight: 600; color: #1a1a2e; margin-bottom: 4px; }
+        .investigation-form .form-control { border: 1px solid #ddd; border-radius: 8px; padding: 10px 14px; font-size: 14px; font-family: inherit; transition: border-color 0.15s; }
+        .investigation-form .form-control:focus { outline: none; border-color: #5c6bc0; box-shadow: 0 0 0 3px rgba(92,107,192,0.1); }
+        .investigation-form .input-group-text { background: #f5f6fa; border: 1px solid #ddd; border-radius: 8px 0 0 8px; font-size: 14px; color: #555; }
+        .investigation-form .input-group .form-control { border-radius: 0 8px 8px 0; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>Enterprise Asset Management</h2>
+    <div class="nav-right">
+        <a href="/profile">{{ user.first_name }}</a>
+        <a href="/logout">Logout</a>
+    </div>
+</div>
+
+<div class="main-layout">
+    <div class="sidebar">
+        <ul class="sidebar-menu">
+            <li><a href="/dashboard" class="menu-item">Dashboard</a></li>
+            <li><a href="/profile" class="menu-item">My Profile</a></li>
+            {% if is_super_admin or 'users.view' in user_permissions or 'roles.view' in user_permissions %}
+            <li class="menu-section">Admin</li>
+            <li class="menu-has-submenu">
+                <div class="submenu-toggle" onclick="toggleSubmenu(this)">
+                    <span>Users &amp; Roles</span>
+                    <span class="arrow">&#9662;</span>
+                </div>
+                <ul class="submenu">
+                    {% if is_super_admin or 'users.view' in user_permissions %}
+                    <li><a href="/admin/users" class="menu-item">Users</a></li>
+                    {% endif %}
+                    {% if is_super_admin or 'roles.view' in user_permissions %}
+                    <li><a href="/admin/roles" class="menu-item">Roles</a></li>
+                    {% endif %}
+                </ul>
+            </li>
+            {% endif %}
+            <li class="menu-section">Service Desk</li>
+            {% include 'partials/navbar.html' %}
+            <li class="menu-section">Incident Management</li>
+            {% include 'partials/incidents_navbar.html' %}
+            {% if is_super_admin or 'assets.view' in user_permissions %}
+            <li><a href="/admin/reports" class="menu-item">Reports</a></li>
+            {% endif %}
+            {% if is_super_admin %}
+            <li><a href="/admin/ldap" class="menu-item">LDAP Config</a></li>
+            <li><a href="/admin/email" class="menu-item">Email Config</a></li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <div class="content-area">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                <div class="flash flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        {% if latest_feedback %}
+        <div class="feedback-banner">
+            <div class="feedback-banner-title">Manager Feedback — {{ latest_feedback.action }}</div>
+            <div class="feedback-banner-text">{{ latest_feedback.feedback }}</div>
+            <div class="feedback-banner-meta">By {{ latest_feedback.performed_by }} &middot; {{ latest_feedback.timestamp }}</div>
+        </div>
+        {% endif %}
+
+        <div class="incident-header">
+            <div class="incident-header-left">
+                <h2>{{ inc.incident_code }} &mdash; {{ inc.title }}</h2>
+                <p>Created {{ inc.created_at }}{% if inc.updated_at %} &nbsp;|&nbsp; Updated {{ inc.updated_at }}{% endif %}</p>
+            </div>
+            <div class="header-badges">
+                <span class="priority-badge" style="background: {{ priority_colors.get(inc.priority, '#888') }};">{{ inc.priority }}</span>
+                <span class="status-badge" style="background: {{ status_colors.get(inc.status, '#5c6bc0') }};">{{ status_labels.get(inc.status, inc.status | replace('_', ' ') | title) }}</span>
+            </div>
+        </div>
+
+        {# ── Workflow Stepper ────────────────────────────────── #}
+        {% set status_step_map = {
+            'NEW': 0,
+            'ASSIGNED': 1,
+            'WAITING_FOR_INVESTIGATION_APPROVAL': 2,
+            'INVESTIGATION_APPROVED': 3,
+            'WAITING_FOR_RCA_APPROVAL': 3,
+            'RCA_APPROVED': 4,
+            'WAITING_FOR_VERIFICATION': 5,
+            'CLOSED': 6
+        } %}
+        {% set current_step = status_step_map.get(inc.status, 0) %}
+        {% set completed_steps = [] %}
+        {% for log in audit_logs %}
+            {% for s_name in step_order %}
+                {% if log.step_name == s_name and s_name not in completed_steps %}
+                    {% set _ = completed_steps.append(s_name) %}
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
+
+        <div class="stepper">
+            <div class="stepper-title">Workflow Progress</div>
+            <div class="steps">
+                {% for step_name in step_order %}
+                {% set step_idx = loop.index0 %}
+                {% set step_class = 'future' %}
+                {% if step_idx < current_step or step_name in completed_steps %}
+                    {% set step_class = 'completed' %}
+                {% elif step_idx == current_step %}
+                    {% set step_class = 'current' %}
+                {% endif %}
+                <div class="step {{ step_class }}">
+                    {% if step_idx < (step_order | length - 1) %}
+                    <div class="step-connector"></div>
+                    {% endif %}
+                    <div class="step-dot-wrap">
+                        <div class="step-dot">{{ loop.index }}</div>
+                    </div>
+                    <div class="step-label">{{ step_name }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {# ── Incident Info Card ──────────────────────────────── #}
+        <div class="section-card">
+            <div class="section-card-header">
+                <div class="section-title">Incident Information</div>
+                <button class="collapse-toggle" type="button" onclick="toggleCollapse('incidentInfoBody', this)">
+                    <i class="bi bi-eye"></i> <span class="toggle-text">View Information</span> <span class="toggle-icon">&#9662;</span>
+                </button>
+            </div>
+            <div class="collapse-body" id="incidentInfoBody">
+                <div class="collapse-body-inner">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">Location</div>
+                            <div class="info-value">{{ inc.location or 'N/A' }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Department</div>
+                            <div class="info-value">{{ dept_name or 'N/A' }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Incident Date</div>
+                            <div class="info-value">{{ inc.incident_date or 'N/A' }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Reported By</div>
+                            <div class="info-value">{{ reporter or 'N/A' }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Assigned Manager</div>
+                            <div class="info-value">{{ manager or 'Unassigned' }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Assigned Technician</div>
+                            <div class="info-value">{{ technician or 'Unassigned' }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Priority</div>
+                            <div class="info-value"><span class="priority-badge" style="background: {{ priority_colors.get(inc.priority, '#888') }};">{{ inc.priority }}</span></div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Severity</div>
+                            <div class="info-value">{{ inc.severity or 'N/A' }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Estimated Repair Cost</div>
+                            <div class="info-value">{% if inc.estimated_repair_cost %}${{ "%.2f"|format(inc.estimated_repair_cost) }}{% else %}N/A{% endif %}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Estimated Repair Time</div>
+                            <div class="info-value">{{ inc.estimated_repair_time or 'N/A' }}</div>
+                        </div>
+                        {% if inc.actual_repair_cost %}
+                        <div class="info-item">
+                            <div class="info-label">Actual Repair Cost</div>
+                            <div class="info-value">${{ "%.2f"|format(inc.actual_repair_cost) }}</div>
+                        </div>
+                        {% endif %}
+                        {% if inc.completion_time %}
+                        <div class="info-item">
+                            <div class="info-label">Completion Time</div>
+                            <div class="info-value">{{ inc.completion_time }}</div>
+                        </div>
+                        {% endif %}
+                        {% if inc.labour_hours %}
+                        <div class="info-item">
+                            <div class="info-label">Labour Hours</div>
+                            <div class="info-value">{{ inc.labour_hours }}</div>
+                        </div>
+                        {% endif %}
+                        <div class="info-item" style="grid-column: 1 / -1;">
+                            <div class="info-label">Description</div>
+                            <div class="info-value desc">{{ inc.description or 'No description provided.' }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ── Investigation Card ─────────────────────────────── #}
+        {% if investigation is not none %}
+        <div class="section-card">
+            <div class="section-title">Investigation</div>
+            <div class="info-grid">
+                <div class="info-item" style="grid-column: 1 / -1;">
+                    <div class="info-label">Notes</div>
+                    <div class="info-value desc">{{ investigation.notes or 'N/A' }}</div>
+                </div>
+                <div class="info-item" style="grid-column: 1 / -1;">
+                    <div class="info-label">Suspected Cause</div>
+                    <div class="info-value">{{ investigation.cause_suspected or 'N/A' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Estimated Cost</div>
+                    <div class="info-value">{% if investigation.estimated_cost %}${{ "%.2f"|format(investigation.estimated_cost) }}{% else %}N/A{% endif %}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Estimated Time</div>
+                    <div class="info-value">{{ investigation.estimated_time or 'N/A' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Submitted</div>
+                    <div class="info-value">{{ investigation.created_at or 'N/A' }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Root Cause Analysis Card ───────────────────────── #}
+        {% if rca is not none %}
+        <div class="section-card">
+            <div class="section-title">Root Cause Analysis</div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Root Cause Category</div>
+                    <div class="info-value">{{ rca.root_cause_category or 'N/A' }}</div>
+                </div>
+                {% if rca.why1 %}
+                <div class="info-item" style="grid-column: 1 / -1;">
+                    <div class="info-label">Why 1</div>
+                    <div class="info-value">{{ rca.why1 }}</div>
+                </div>
+                {% endif %}
+                {% if rca.why2 %}
+                <div class="info-item" style="grid-column: 1 / -1;">
+                    <div class="info-label">Why 2</div>
+                    <div class="info-value">{{ rca.why2 }}</div>
+                </div>
+                {% endif %}
+                {% if rca.why3 %}
+                <div class="info-item" style="grid-column: 1 / -1;">
+                    <div class="info-label">Why 3</div>
+                    <div class="info-value">{{ rca.why3 }}</div>
+                </div>
+                {% endif %}
+                {% if rca.why4 %}
+                <div class="info-item" style="grid-column: 1 / -1;">
+                    <div class="info-label">Why 4</div>
+                    <div class="info-value">{{ rca.why4 }}</div>
+                </div>
+                {% endif %}
+                {% if rca.why5 %}
+                <div class="info-item" style="grid-column: 1 / -1;">
+                    <div class="info-label">Why 5</div>
+                    <div class="info-value">{{ rca.why5 }}</div>
+                </div>
+                {% endif %}
+                <div class="info-item" style="grid-column: 1 / -1;">
+                    <div class="info-label">Final Root Cause</div>
+                    <div class="info-value desc">{{ rca.final_root_cause or 'N/A' }}</div>
+                </div>
+                <div class="info-item" style="grid-column: 1 / -1;">
+                    <div class="info-label">Contributing Factors</div>
+                    <div class="info-value desc">{{ rca.contributing_factors or 'N/A' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Submitted</div>
+                    <div class="info-value">{{ rca.created_at or 'N/A' }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Corrective Action Card ─────────────────────────── #}
+        {% if corrective is not none %}
+        <div class="section-card">
+            <div class="section-title">Corrective Action</div>
+            <div class="info-grid">
+                <div class="info-item" style="grid-column: 1 / -1;">
+                    <div class="info-label">Repair Actions</div>
+                    <div class="info-value desc">{{ corrective.repair_actions or 'N/A' }}</div>
+                </div>
+                <div class="info-item" style="grid-column: 1 / -1;">
+                    <div class="info-label">Parts Replaced</div>
+                    <div class="info-value">{{ corrective.parts_replaced or 'N/A' }}</div>
+                </div>
+                <div class="info-item" style="grid-column: 1 / -1;">
+                    <div class="info-label">Materials Used</div>
+                    <div class="info-value">{{ corrective.materials_used or 'N/A' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Labour Hours</div>
+                    <div class="info-value">{{ corrective.labour_hours or 'N/A' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Actual Cost</div>
+                    <div class="info-value">{% if corrective.actual_cost %}${{ "%.2f"|format(corrective.actual_cost) }}{% else %}N/A{% endif %}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Completion Time</div>
+                    <div class="info-value">{{ corrective.completion_time or 'N/A' }}</div>
+                </div>
+                <div class="info-item" style="grid-column: 1 / -1;">
+                    <div class="info-label">Comments</div>
+                    <div class="info-value desc">{{ corrective.comments or 'N/A' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Submitted</div>
+                    <div class="info-value">{{ corrective.created_at or 'N/A' }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Verification Card ──────────────────────────────── #}
+        {% if verification is not none %}
+        <div class="section-card">
+            <div class="section-title">Verification</div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Result</div>
+                    <div class="info-value">
+                        {% if verification.result == 'Passed' %}
+                        <span class="status-badge" style="background: #2e7d32;">Passed</span>
+                        {% elif verification.result == 'Failed' %}
+                        <span class="status-badge" style="background: #e53935;">Failed</span>
+                        {% else %}
+                        {{ verification.result or 'N/A' }}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Verified By</div>
+                    <div class="info-value">{{ verification.verified_by or 'N/A' }}</div>
+                </div>
+                <div class="info-item" style="grid-column: 1 / -1;">
+                    <div class="info-label">Comments</div>
+                    <div class="info-value desc">{{ verification.comments or 'N/A' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Verified At</div>
+                    <div class="info-value">{{ verification.created_at or 'N/A' }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Closure Card ───────────────────────────────────── #}
+        {% if closure is not none %}
+        <div class="section-card">
+            <div class="section-title">Closure</div>
+            <div class="info-grid">
+                <div class="info-item" style="grid-column: 1 / -1;">
+                    <div class="info-label">Resolution Summary</div>
+                    <div class="info-value desc">{{ closure.resolution_summary or 'N/A' }}</div>
+                </div>
+                <div class="info-item" style="grid-column: 1 / -1;">
+                    <div class="info-label">Final Root Cause</div>
+                    <div class="info-value">{{ closure.final_root_cause or 'N/A' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Total Repair Cost</div>
+                    <div class="info-value">{% if closure.total_repair_cost %}${{ "%.2f"|format(closure.total_repair_cost) }}{% else %}N/A{% endif %}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Preventive Action Required</div>
+                    <div class="info-value">{{ 'Yes' if closure.preventive_action_required else 'No' }}</div>
+                </div>
+                <div class="info-item" style="grid-column: 1 / -1;">
+                    <div class="info-label">Preventive Recommendations</div>
+                    <div class="info-value desc">{{ closure.preventive_recommendations or 'N/A' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Closed At</div>
+                    <div class="info-value">{{ closure.created_at or 'N/A' }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Audit Log Timeline ─────────────────────────────── #}
+        <div class="section-card">
+            <div class="section-card-header">
+                <div class="section-title">Audit Log</div>
+                <button class="collapse-toggle" type="button" onclick="toggleCollapse('auditLogBody', this)">
+                    <i class="bi bi-eye"></i> <span class="toggle-text">View Log</span> <span class="toggle-icon">&#9662;</span>
+                </button>
+            </div>
+            <div class="collapse-body" id="auditLogBody">
+                <div class="collapse-body-inner">
+                    {% if audit_logs %}
+                    <div class="timeline">
+                        {% for log in audit_logs %}
+                        <div class="timeline-entry">
+                            <div class="tl-step">{{ log.step_name }}</div>
+                            <div class="tl-action">{{ log.action }}</div>
+                            {% if log.old_value or log.new_value %}
+                            <div class="tl-change">
+                                <span class="old">{{ log.old_value or '—' }}</span>
+                                <span class="arrow-icon">&#8594;</span>
+                                <span class="new">{{ log.new_value or '—' }}</span>
+                            </div>
+                            {% endif %}
+                            <div class="tl-meta">{{ log.performed_by }} &nbsp;&middot;&nbsp; {{ log.timestamp }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-timeline">No audit log entries available for this incident.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {# ── Media / Files ──────────────────────────────────── #}
+        {% if media %}
+        <div class="section-card">
+            <div class="section-title">Attached Files</div>
+            <div class="media-list">
+                {% for file in media %}
+                <div class="media-item">
+                    <span>&#128196;</span>
+                    <a href="/{{ file.file_path }}" target="_blank">{{ file.file_path.split('/')[-1] }}</a>
+                    <span class="media-meta">{{ file.step_name }} &nbsp;&middot;&nbsp; {{ file.uploaded_by }} &nbsp;&middot;&nbsp; {{ file.uploaded_at }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── Action Buttons ─────────────────────────────────── #}
+        {% set can_review = (current_user.role|lower == 'manager' or user.is_super_admin or 'incidents.review_assign' in user_permissions) %}
+        {% set can_verify = (current_user.role|lower == 'manager' or user.is_super_admin or 'incidents.verify_close' in user_permissions) %}
+        {% set is_tech = (current_user.role|lower == 'technician' or user.is_super_admin) %}
+
+        {% if inc.status == 'ASSIGNED' and (session.user_id == inc.assigned_technician_id or session.role|lower in ['technician', 'super admin', 'super_admin']) %}
+        <div class="section-card" style="border: none; box-shadow: 0 4px 16px rgba(0,0,0,0.08);">
+            <div class="section-title" style="color: #5c6bc0; font-size: 17px; padding-bottom: 16px; border-bottom: 2px solid #e8eaf6;">
+                <i class="bi bi-search me-2"></i>Step 3: Investigation
+            </div>
+            <form action="{{ url_for('incidents.investigation', incident_id=inc.id) }}" method="POST" enctype="multipart/form-data" class="investigation-form" style="padding-top: 8px;">
+                
+                <!-- Investigation Notes -->
+                <div class="mb-3">
+                    <label for="investigation_notes" class="form-label">Investigation Notes *</label>
+                    <textarea class="form-control" id="investigation_notes" name="investigation_notes" rows="4" placeholder="Enter detailed findings from initial diagnosis..." required style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px 14px;"></textarea>
+                </div>
+
+                <!-- Cause Suspected -->
+                <div class="mb-3">
+                    <label for="cause_suspected" class="form-label">Cause Suspected *</label>
+                    <textarea class="form-control" id="cause_suspected" name="cause_suspected" rows="3" placeholder="Identify potential underlying cause..." required></textarea>
+                </div>
+
+                <!-- Evidence Uploads -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="evidence_photos" class="form-label">Upload Photos</label>
+                        <input type="file" class="form-control" id="evidence_photos" name="evidence_photos" multiple accept="image/*">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="evidence_reports" class="form-label">Upload Reports</label>
+                        <input type="file" class="form-control" id="evidence_reports" name="evidence_reports" multiple accept=".pdf,.doc,.docx">
+                    </div>
+                </div>
+
+                <!-- Optional Estimates -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label for="estimated_repair_cost" class="form-label">Estimated Repair Cost (₹) <span class="text-muted fw-normal">(Optional)</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">₹</span>
+                            <input type="number" step="0.01" class="form-control" id="estimated_repair_cost" name="estimated_repair_cost" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="estimated_repair_time" class="form-label">Estimated Repair Time <span class="text-muted fw-normal">(Optional)</span></label>
+                        <input type="text" class="form-control" id="estimated_repair_time" name="estimated_repair_time" placeholder="e.g. 2 hours, 1 day">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary px-4">
+                    <i class="bi bi-send me-1"></i> Submit Investigation
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
+        {% if can_review and inc.status == 'WAITING_FOR_INVESTIGATION_APPROVAL' %}
+        <div class="actions-bar">
+            <span class="actions-bar-label">Review Investigation:</span>
+            <button class="btn btn-success btn-sm" onclick="postAction('/incidents/{{ inc.id }}/review-investigation', 'approve')">Approve</button>
+            <button class="btn btn-danger btn-sm" onclick="postAction('/incidents/{{ inc.id }}/review-investigation', 'reject')">Reject</button>
+        </div>
+        {% endif %}
+
+        {% if is_tech and inc.status == 'INVESTIGATION_APPROVED' %}
+        <div class="actions-bar">
+            <span class="actions-bar-label">Next Step:</span>
+            <a href="/incidents/{{ inc.id }}/rca" class="btn btn-primary">Perform Root Cause Analysis</a>
+        </div>
+        {% endif %}
+
+        {% if can_review and inc.status == 'WAITING_FOR_RCA_APPROVAL' %}
+        <div class="actions-bar">
+            <span class="actions-bar-label">Review RCA:</span>
+            <button class="btn btn-success btn-sm" onclick="postAction('/incidents/{{ inc.id }}/review-rca', 'approve')">Approve</button>
+            <button class="btn btn-danger btn-sm" onclick="postAction('/incidents/{{ inc.id }}/review-rca', 'reject')">Reject</button>
+        </div>
+        {% endif %}
+
+        {% if is_tech and inc.status == 'RCA_APPROVED' %}
+        <div class="actions-bar">
+            <span class="actions-bar-label">Next Step:</span>
+            <a href="/incidents/{{ inc.id }}/corrective-action" class="btn btn-primary">Submit Corrective Action</a>
+        </div>
+        {% endif %}
+
+        {% if can_verify and inc.status == 'WAITING_FOR_VERIFICATION' %}
+        <div class="actions-bar">
+            <span class="actions-bar-label">Verification:</span>
+            <form id="verifyForm" method="POST" action="/incidents/{{ inc.id }}/verify" style="display:inline;">
+                <div class="verify-form">
+                    <div class="form-group">
+                        <label for="verify_result">Result</label>
+                        <select name="result" id="verify_result" required>
+                            <option value="Passed">Passed</option>
+                            <option value="Failed">Failed</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="verify_comments">Comments</label>
+                        <textarea name="comments" id="verify_comments" placeholder="Verification comments..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>&nbsp;</label>
+                        <button type="submit" class="btn btn-primary btn-sm">Submit Verification</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+
+        {% if inc.status == 'CLOSED' %}
+        <div class="actions-bar">
+            <span class="actions-bar-label">This incident is closed.</span>
+            <a href="/incidents/{{ inc.id }}/closure" class="btn btn-cancel btn-sm">View Closure Details</a>
+        </div>
+        {% endif %}
+
+        <a href="/incidents/history" class="back-link">&larr; Back to Incident History</a>
+    </div>
+</div>
+
+<script>
+function toggleSubmenu(el) {
+    var submenu = el.nextElementSibling;
+    var arrow = el.querySelector('.arrow');
+    submenu.classList.toggle('open');
+    arrow.style.transform = submenu.classList.contains('open') ? 'rotate(180deg)' : '';
+}
+document.querySelectorAll('.submenu-toggle').forEach(function(toggle) {
+    if (toggle.textContent.trim().includes('Incident Management')) {
+        var submenu = toggle.nextElementSibling;
+        if (submenu) {
+            submenu.classList.add('open');
+            var arrow = toggle.querySelector('.arrow');
+            if (arrow) arrow.style.transform = 'rotate(180deg)';
+        }
+    }
+});
+
+function toggleCollapse(id, btn) {
+    var el = document.getElementById(id);
+    var isOpen = el.classList.contains('show');
+    if (isOpen) {
+        el.classList.remove('show');
+        btn.classList.remove('open');
+        btn.querySelector('.toggle-text').textContent = btn.querySelector('.toggle-text').textContent.replace('Hide', 'View');
+    } else {
+        el.classList.add('show');
+        btn.classList.add('open');
+        btn.querySelector('.toggle-text').textContent = btn.querySelector('.toggle-text').textContent.replace('View', 'Hide');
+    }
+}
+
+function postAction(url, action) {
+    var formData = new FormData();
+    formData.append('action', action);
+    fetch(url, { method: 'POST', body: formData })
+    .then(function(res) { return res.json().then(function(data) { return { status: res.status, data: data }; }); })
+    .then(function(result) {
+        if (result.status === 200 && result.data.success) {
+            location.reload();
+        } else {
+            alert(result.data.error || 'Something went wrong.');
+        }
+    })
+    .catch(function(err) {
+        console.error(err);
+        alert('Network error. Please try again.');
+    });
+}
+
+var verifyForm = document.getElementById('verifyForm');
+if (verifyForm) {
+    verifyForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var btn = this.querySelector('button[type="submit"]');
+        if (btn) { btn.disabled = true; btn.textContent = 'Submitting...'; }
+        fetch(this.action, { method: 'POST', body: new FormData(this) })
+        .then(function(res) { return res.json().then(function(data) { return { status: res.status, data: data }; }); })
+        .then(function(result) {
+            if (result.status === 200 && result.data.success) {
+                location.reload();
+            } else {
+                if (btn) { btn.disabled = false; btn.textContent = 'Submit Verification'; }
+                alert(result.data.error || 'Something went wrong.');
+            }
+        })
+        .catch(function(err) {
+            console.error(err);
+            if (btn) { btn.disabled = false; btn.textContent = 'Submit Verification'; }
+            alert('Network error. Please try again.');
+        });
+    });
+}
+</script>
+
+</body>
+</html>

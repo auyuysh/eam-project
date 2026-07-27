@@ -89,12 +89,16 @@
     <div class="page-header">
         <h1>{{ asset_type[1] }}</h1>
         <div class="header-actions">
+            {% if is_super_admin or 'assets.create' in user_permissions %}
             <button class="btn btn-primary" onclick="openAddAssetModal()">
                 + Add Asset
             </button>
+            {% endif %}
+            {% if is_super_admin or 'assets.delete' in user_permissions %}
             <button class="btn btn-danger" onclick="openDeleteTypeModal()">
                 Delete Asset Type
             </button>
+            {% endif %}
         </div>
     </div>
 
@@ -107,10 +111,12 @@
     <div class="fields-section">
         <div class="fields-header">
             <div class="section-title">Custom Fields</div>
+            {% if is_super_admin or 'assets.create' in user_permissions %}
             <button class="btn btn-primary btn-sm"
                     onclick="openAddFieldModal()">
                 + Create Custom Field
             </button>
+            {% endif %}
         </div>
 
         {% if type_fields %}
@@ -119,6 +125,7 @@
                 <div class="field-tag">
                     {{ field[1] }}
                     <span class="field-type-badge">{{ field[2] }}</span>
+                    {% if is_super_admin or 'assets.delete' in user_permissions %}
                     <button
                         class="field-delete-btn"
                         data-field-id="{{ field[0] }}"
@@ -129,6 +136,7 @@
                         )"
                         title="Delete field"
                     >✕</button>
+                    {% endif %}
                 </div>
                 {% endfor %}
             </div>
@@ -144,6 +152,16 @@
     <div class="assets-section">
         <div class="assets-header">
             <div class="section-title">Assets ({{ assets|length }})</div>
+            {% if assets %}
+            <div style="display:flex; gap:8px;">
+                {% if is_super_admin or 'global.export.excel' in user_permissions %}
+                <a href="/asset-type/{{ asset_type[0] }}/export/xlsx" class="btn btn-secondary" style="font-size:12px;">Export Excel</a>
+                {% endif %}
+                {% if is_super_admin or 'global.export.pdf' in user_permissions %}
+                <a href="/asset-type/{{ asset_type[0] }}/export/pdf" class="btn btn-secondary" style="font-size:12px;">Export PDF</a>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
 
         {% if assets %}
@@ -202,31 +220,36 @@
         {% else %}
             <div class="empty-state">
                 <p>No assets added yet.</p>
+                {% if is_super_admin or 'assets.create' in user_permissions %}
                 <button class="btn btn-primary" onclick="openAddAssetModal()">
                     + Add First Asset
                 </button>
+                {% endif %}
             </div>
         {% endif %}
     </div>
 
 </div>
 
+{% if is_super_admin or 'assets.create' in user_permissions %}
 <!-- Add Asset Modal -->
 <div class="modal-overlay" id="addAssetModal">
     <div class="modal">
         <h2>Add Asset</h2>
         <div class="error-msg" id="addAssetError"></div>
-        <form id="addAssetForm" method="POST"
-              action="/asset-type/{{ asset_type[0] }}/add-asset">
+        <form id="addAssetForm">
+            <input type="hidden" name="asset_type_id" id="asset_type_id"
+                   value="{{ asset_type.id if asset_type.id else asset_type[0] }}">
+
             <label>Asset Name *</label>
-            <input type="text" name="name"
+            <input type="text" name="name" id="asset_name"
                    placeholder="e.g. Dell Latitude 7420" required>
 
             <label>Serial Number *</label>
             <input
                 type="text"
                 name="serial_number"
-                id="serialNumberInput"
+                id="serial_number"
                 placeholder="e.g. SN123456"
                 required
                 autocomplete="off"
@@ -234,14 +257,14 @@
             >
 
             <label>Location</label>
-            <input type="text" name="location"
+            <input type="text" name="location" id="location"
                    placeholder="e.g. Room 204, Block B">
 
             <label>Warranty Start Date</label>
-            <input type="date" name="warranty_start">
+            <input type="date" name="warranty_start" id="warranty_start">
 
             <label>Warranty End Date</label>
-            <input type="date" name="warranty_end">
+            <input type="date" name="warranty_end" id="warranty_end">
 
             <div class="modal-actions">
                 <button type="button" class="btn btn-cancel"
@@ -252,7 +275,9 @@
         </form>
     </div>
 </div>
+{% endif %}
 
+{% if is_super_admin or 'assets.create' in user_permissions %}
 <!-- Add Custom Field Modal -->
 <div class="modal-overlay" id="addFieldModal">
     <div class="modal">
@@ -280,7 +305,9 @@
         </form>
     </div>
 </div>
+{% endif %}
 
+{% if is_super_admin or 'assets.delete' in user_permissions %}
 <!-- Delete Custom Field Modal -->
 <div class="modal-overlay" id="deleteFieldModal">
     <div class="modal">
@@ -333,6 +360,7 @@
         </form>
     </div>
 </div>
+{% endif %}
 
 <script>
     // ─── Modal controls ───────────────────────────────────────
@@ -377,46 +405,54 @@
 
     // ─── Add Asset — fetch with error display ─────────────────
 
-    document.getElementById('addAssetForm')
+    var addAssetFormEl = document.getElementById('addAssetForm');
+    if (addAssetFormEl) {
+    addAssetFormEl
         .addEventListener('submit', function(e) {
             e.preventDefault();
 
-            const btn = document.getElementById('addAssetBtn');
-            const errorDiv = document.getElementById('addAssetError');
+            var btn = document.getElementById('addAssetBtn');
+            var errorDiv = document.getElementById('addAssetError');
+            var typeId = document.getElementById('asset_type_id').value;
 
             if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
             errorDiv.style.display = 'none';
 
-            fetch(this.action, { method: 'POST', body: new FormData(this) })
+            fetch('/asset-type/' + typeId + '/add-asset', {
+                method: 'POST',
+                body: new FormData(addAssetFormEl)
+            })
             .then(function(response) {
+                var ct = response.headers.get('content-type') || '';
+                if (ct.indexOf('application/json') === -1) {
+                    if (response.status === 401 || response.status === 403 || response.status === 302) {
+                        window.location.href = '/login';
+                        return;
+                    }
+                    throw new Error('Unexpected response type');
+                }
                 return response.json().then(function(data) {
-                    return { status: response.status, data: data };
+                    if (response.ok && data.success) {
+                        location.reload();
+                    } else {
+                        throw new Error(data.error || 'Something went wrong.');
+                    }
                 });
             })
-            .then(function(result) {
-                if (result.status === 200 && result.data.success) {
-                    location.reload();
-                } else {
-                    if (btn) {
-                        btn.disabled = false;
-                        btn.textContent = 'Save Asset';
-                    }
-                    errorDiv.textContent = result.data.error ||
-                        'Something went wrong.';
-                    errorDiv.style.display = 'block';
-                }
-            })
             .catch(function(err) {
-                console.error(err);
+                console.error('Add Asset Error:', err);
                 if (btn) { btn.disabled = false; btn.textContent = 'Save Asset'; }
-                errorDiv.textContent = 'Network error. Please try again.';
+                errorDiv.textContent = err.message || 'Network error. Please try again.';
                 errorDiv.style.display = 'block';
             });
         });
+    }
 
     // ─── Add Custom Field — fetch ─────────────────────────────
 
-    document.getElementById('addFieldForm')
+    var addFieldFormEl = document.getElementById('addFieldForm');
+    if (addFieldFormEl) {
+    addFieldFormEl
         .addEventListener('submit', function(e) {
             e.preventDefault();
             const btn = document.getElementById('addFieldBtn');
@@ -428,10 +464,13 @@
                     if (btn) { btn.disabled = false; btn.textContent = 'Create Field'; }
                 });
         });
+    }
 
     // ─── Delete Custom Field — fetch ──────────────────────────
 
-    document.getElementById('deleteFieldForm')
+    var deleteFieldFormEl = document.getElementById('deleteFieldForm');
+    if (deleteFieldFormEl) {
+    deleteFieldFormEl
         .addEventListener('submit', function(e) {
             e.preventDefault();
             const btn = document.getElementById('deleteFieldBtn');
@@ -443,14 +482,18 @@
                     if (btn) { btn.disabled = false; btn.textContent = 'Delete Field'; }
                 });
         });
+    }
 
     // ─── Delete Asset Type — normal submit (navigates away) ───
 
-    document.getElementById('deleteTypeForm')
+    var deleteTypeFormEl = document.getElementById('deleteTypeForm');
+    if (deleteTypeFormEl) {
+    deleteTypeFormEl
         .addEventListener('submit', function() {
             const btn = document.getElementById('deleteTypeBtn');
             if (btn) { btn.disabled = true; btn.textContent = 'Deleting...'; }
         });
+    }
 
     // ─── Search and filter ────────────────────────────────────
 

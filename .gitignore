@@ -1,8 +1,31 @@
-__pycache__/
-*.pyc
-devices.db
-dist/
-build/
-*.spec
+# Environment & Secrets
 .env
+.env.*
+!.env.example
+
+# Python / Flask
+__pycache__/
+*.py[cod]
+*$py.class
 venv/
+.venv/
+*.log
+
+# Build & Installers
+build/
+dist/
+*.exe
+*.spec
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Databases
+*.db
+*.sqlite3
+instance/
+
+# Misc
+*.egg-info/

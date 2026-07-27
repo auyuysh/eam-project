@@ -1,0 +1,8 @@
+flask
+flask-mail
+python-dotenv
+psycopg2-binary
+werkzeug
+ldap3
+openpyxl
+reportlab

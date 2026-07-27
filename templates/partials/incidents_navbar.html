@@ -1,0 +1,27 @@
+<li class="menu-has-submenu">
+    <div class="submenu-toggle" onclick="toggleSubmenu(this)">
+        <span>Incident Management</span>
+        <span class="arrow">&#9662;</span>
+    </div>
+    <ul class="submenu">
+        <li><a href="/incidents/create" class="menu-item">Raise Incident</a></li>
+
+        {% if session.role|lower == 'employee' %}
+        <li><a href="/incidents/history" class="menu-item">View Incident Status</a></li>
+        {% else %}
+            {% if is_super_admin or 'incidents.investigate' in user_permissions or 'incidents.review_assign' in user_permissions %}
+            <li><a href="/incidents/my-incidents" class="menu-item">My Incidents</a></li>
+            {% endif %}
+
+            {% if is_super_admin or 'incidents.review_assign' in user_permissions or 'incidents.reassign_manager' in user_permissions %}
+            <li><a href="/incidents/assign-requests" class="menu-item">Assign Requests</a></li>
+            {% endif %}
+
+            <li><a href="/incidents/history" class="menu-item">History</a></li>
+
+            {% if is_super_admin or 'incidents.reports' in user_permissions %}
+            <li><a href="/incidents/reports" class="menu-item">Reports</a></li>
+            {% endif %}
+        {% endif %}
+    </ul>
+</li>

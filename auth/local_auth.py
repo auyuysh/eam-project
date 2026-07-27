@@ -1,29 +1,30 @@
 """
-Local Database Authentication
-==============================
+Local Database Profile Provider
+================================
 
-Handles email + password authentication against the local SQLite
-database.  This provider does NOT communicate with any external
-directory service.
+Retrieves user application profiles from the local PostgreSQL database.
+
+LDAP is the **sole identity provider** for authentication.  This module
+only fetches role, permissions, and employee metadata stored locally.
 
 Responsibilities
 -----------------
-- Verify a password hash stored in the ``users`` table.
-- Retrieve user records by email or user ID.
+- Retrieve user profile records by email or user ID.
 
 Out of scope
 -------------
-- OTP / MFA logic   → see ``otp_service``
-- Email delivery    → see ``email_service``
-- Session management → handled by server.py / Flask session
+- Credential verification  -> handled exclusively by ``ldap_auth``
+- OTP / MFA logic         -> see ``otp_service``
+- Email delivery          -> see ``email_service``
+- Session management      -> handled by server.py / Flask session
 """
 
+import logging
 from typing import Optional
 
-from werkzeug.security import check_password_hash
-
 from auth.database import get_db
-from auth.models import AuthResult
+
+logger = logging.getLogger("eam.auth.local")
 
 
 # ---------------------------------------------------------------------------
@@ -32,24 +33,25 @@ from auth.models import AuthResult
 
 def get_user(email: str) -> Optional[dict]:
     """
-    Fetch a user record by email.
+    Fetch a user application profile by email.
 
     Returns
     -------
     dict or None
-        A dictionary with keys ``id``, ``email``, ``password_hash``,
-        ``first_name``, ``last_name``, ``company_name``,
-        ``company_id``, ``role`` or ``None`` if not found.
+        A dictionary with user profile fields or ``None`` if not found.
     """
     conn = get_db()
     try:
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT id, email, password_hash, first_name,
-                   last_name, company_name, company_id, role
+            SELECT id, email, first_name,
+                   last_name, company_id, role,
+                   is_super_admin, is_approved, account_status,
+                   approved_by, approved_at, role_id, department_id,
+                   ldap_uid
             FROM users
-            WHERE email = ?
+            WHERE email = %s
             """,
             (email,),
         )
@@ -57,38 +59,38 @@ def get_user(email: str) -> Optional[dict]:
         if row is None:
             return None
 
-        return {
-            "id": row[0],
-            "email": row[1],
-            "password_hash": row[2],
-            "first_name": row[3],
-            "last_name": row[4],
-            "company_name": row[5],
-            "company_id": row[6],
-            "role": row[7],
-        }
+        return dict(row)
+    except Exception as e:
+        logger.error(
+            "[DB ERROR] file=auth/local_auth.py, function=get_user, email=%s, error=%s",
+            email, e, exc_info=True,
+        )
+        return None
     finally:
         conn.close()
 
 
 def get_user_by_id(user_id: int) -> Optional[dict]:
     """
-    Fetch a user record by primary key.
+    Fetch a user application profile by primary key.
 
     Returns
     -------
     dict or None
-        A dictionary with user fields or ``None`` if not found.
+        A dictionary with user profile fields or ``None`` if not found.
     """
     conn = get_db()
     try:
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT id, email, password_hash, first_name,
-                   last_name, company_name, company_id, role
+            SELECT id, email, first_name,
+                   last_name, company_id, role,
+                   is_super_admin, is_approved, account_status,
+                   approved_by, approved_at, role_id, department_id,
+                   ldap_uid
             FROM users
-            WHERE id = ?
+            WHERE id = %s
             """,
             (user_id,),
         )
@@ -96,54 +98,54 @@ def get_user_by_id(user_id: int) -> Optional[dict]:
         if row is None:
             return None
 
-        return {
-            "id": row[0],
-            "email": row[1],
-            "password_hash": row[2],
-            "first_name": row[3],
-            "last_name": row[4],
-            "company_name": row[5],
-            "company_id": row[6],
-            "role": row[7],
-        }
+        return dict(row)
+    except Exception as e:
+        logger.error(
+            "[DB ERROR] file=auth/local_auth.py, function=get_user_by_id, user_id=%s, error=%s",
+            user_id, e, exc_info=True,
+        )
+        return None
     finally:
         conn.close()
 
 
-def authenticate_local(email: str, password: str) -> AuthResult:
+def get_user_by_ldap_uid(ldap_uid: str) -> Optional[dict]:
     """
-    Authenticate a user against the local database.
+    Fetch a user application profile by LDAP uid.
 
-    Parameters
-    ----------
-    email : str
-        The login email address.
-    password : str
-        The plain-text password to verify.
+    This is the preferred lookup method for post-authentication profile
+    loading, since LDAP is the single source of truth for identity.
 
     Returns
     -------
-    AuthResult
-        status ``'authenticated'`` on success, ``'failed'`` otherwise.
+    dict or None
+        A dictionary with user profile fields or ``None`` if not found.
     """
-    user = get_user(email)
-
-    if user is None:
-        return AuthResult(
-            status="failed",
-            message="Email address not registered.",
+    conn = get_db()
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT id, email, first_name,
+                   last_name, company_id, role,
+                   is_super_admin, is_approved, account_status,
+                   approved_by, approved_at, role_id, department_id,
+                   ldap_uid
+            FROM users
+            WHERE ldap_uid = %s
+            """,
+            (ldap_uid,),
         )
+        row = cursor.fetchone()
+        if row is None:
+            return None
 
-    if not check_password_hash(user["password_hash"], password):
-        return AuthResult(
-            status="failed",
-            message="Password incorrect.",
+        return dict(row)
+    except Exception as e:
+        logger.error(
+            "[DB ERROR] file=auth/local_auth.py, function=get_user_by_ldap_uid, ldap_uid=%s, error=%s",
+            ldap_uid, e, exc_info=True,
         )
-
-    return AuthResult(
-        status="authenticated",
-        user=user,
-        user_id=user["id"],
-        username=user["email"],
-        message="Local authentication successful.",
-    )
+        return None
+    finally:
+        conn.close()

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Corrective Action — Incident Management</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Poppins', sans-serif; background: #f5f6fa; color: #333; }
+        .navbar { background: #1a1a2e; color: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; height: 56px; }
+        .navbar h2 { font-size: 18px; }
+        .nav-right { display: flex; gap: 16px; align-items: center; font-size: 14px; color: #aaa; }
+        .nav-right a { color: #aaa; text-decoration: none; }
+        .nav-right a:hover { color: white; }
+        .main-layout { display: flex; min-height: calc(100vh - 56px); }
+        .sidebar { width: 240px; background: #1a1a2e; color: white; display: flex; flex-direction: column; flex-shrink: 0; border-top: 1px solid #2e2e4f; }
+        .sidebar-menu { list-style: none; padding: 20px 0; margin: 0; }
+        .menu-section { padding: 12px 24px 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; }
+        .menu-item { display: block; padding: 10px 24px; color: #d1d5db; text-decoration: none; font-size: 14px; transition: all 0.2s ease; cursor: pointer; }
+        .menu-item:hover, .menu-item.active { background: rgba(255,255,255,0.05); color: white; }
+        .menu-has-submenu { position: relative; }
+        .submenu-toggle { display: flex; justify-content: space-between; align-items: center; padding: 10px 24px; color: #d1d5db; font-size: 14px; cursor: pointer; transition: all 0.2s ease; }
+        .submenu-toggle:hover { background: rgba(255,255,255,0.05); color: white; }
+        .submenu { list-style: none; padding-left: 16px; display: none; }
+        .submenu.open { display: block; }
+        .submenu .menu-item { padding: 8px 24px; font-size: 13px; }
+        .arrow { font-size: 10px; transition: transform 0.2s; }
+        .content-area { flex-grow: 1; padding: 32px; background: #f5f6fa; overflow-y: auto; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .page-header h1 { font-size: 24px; }
+        .page-subtitle { color: #888; font-size: 14px; margin-bottom: 24px; }
+
+        .incident-banner { background: white; border-radius: 12px; padding: 24px 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; }
+        .incident-banner h2 { font-size: 18px; color: #1a1a2e; margin-bottom: 4px; }
+        .incident-banner p { font-size: 13px; color: #888; }
+        .banner-badges { display: flex; gap: 8px; flex-shrink: 0; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+
+        .card { background: white; border-radius: 12px; padding: 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px; }
+        .card h2 { font-size: 16px; font-weight: 600; color: #1a1a2e; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #eee; }
+
+        .form-group { margin-bottom: 20px; }
+        .form-group label { font-size: 13px; font-weight: 500; color: #555; display: block; margin-bottom: 6px; }
+        .form-group input,
+        .form-group select,
+        .form-group textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-family: 'Poppins', sans-serif; font-size: 14px; transition: border-color 0.2s; }
+        .form-group input:focus,
+        .form-group textarea:focus { outline: none; border-color: #5c6bc0; box-shadow: 0 0 0 3px rgba(92,107,192,0.1); }
+        .form-group textarea { resize: vertical; min-height: 100px; }
+        .form-actions { display: flex; gap: 12px; align-items: center; margin-top: 8px; }
+
+        .btn { padding: 10px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; text-decoration: none; display: inline-block; font-family: inherit; transition: all 0.15s; }
+        .btn-primary { background: #5c6bc0; color: white; }
+        .btn-primary:hover { background: #3f51b5; }
+        .btn-secondary { background: #eee; color: #555; }
+        .btn-secondary:hover { background: #ddd; }
+
+        .flash-messages { margin-bottom: 20px; }
+        .flash { padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 10px; }
+        .flash-success { background: #e8f5e9; color: #2e7d32; }
+        .flash-danger { background: #ffebee; color: #c62828; }
+
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        @media (max-width: 768px) { .form-row { grid-template-columns: 1fr; } }
+        .form-card { max-width: 700px; }
+
+        .media-list { list-style: none; }
+        .media-list li { padding: 8px 0; font-size: 14px; color: #555; border-bottom: 1px solid #f0f0f0; }
+        .media-list li:last-child { border-bottom: none; }
+        .media-list li i { margin-right: 8px; color: #5c6bc0; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>Enterprise Asset Management</h2>
+    <div class="nav-right">
+        <a href="/profile">{{ username }}</a>
+        <a href="/logout">Logout</a>
+    </div>
+</div>
+
+<div class="main-layout">
+    <div class="sidebar">
+        <ul class="sidebar-menu">
+            <li><a href="/dashboard" class="menu-item">Dashboard</a></li>
+            <li><a href="/profile" class="menu-item">My Profile</a></li>
+            {% if is_super_admin or 'users.view' in user_permissions or 'roles.view' in user_permissions %}
+            <li class="menu-section">Admin</li>
+            <li class="menu-has-submenu">
+                <div class="submenu-toggle" onclick="toggleSubmenu(this)">
+                    <span>Users &amp; Roles</span>
+                    <span class="arrow">&#9662;</span>
+                </div>
+                <ul class="submenu">
+                    {% if is_super_admin or 'users.view' in user_permissions %}
+                    <li><a href="/admin/users" class="menu-item">Users</a></li>
+                    {% endif %}
+                    {% if is_super_admin or 'roles.view' in user_permissions %}
+                    <li><a href="/admin/roles" class="menu-item">Roles</a></li>
+                    {% endif %}
+                </ul>
+            </li>
+            {% endif %}
+            <li class="menu-section">Service Desk</li>
+            {% include 'partials/navbar.html' %}
+            <li class="menu-section">Incident Management</li>
+            {% include 'partials/incidents_navbar.html' %}
+            {% if is_super_admin or 'assets.view' in user_permissions %}
+            <li><a href="/admin/reports" class="menu-item">Reports</a></li>
+            {% endif %}
+            {% if is_super_admin %}
+            <li><a href="/admin/ldap" class="menu-item">LDAP Config</a></li>
+            <li><a href="/admin/email" class="menu-item">Email Config</a></li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <div class="content-area">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                <div class="flash flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="incident-banner">
+            <div>
+                <span style="font-size:14px; color:#888; font-weight:500;">{{ inc.incident_code }}</span>
+                <h2>{{ inc.title }}</h2>
+            </div>
+            <div class="banner-badges">
+                <span class="badge" style="background: {{ status_colors.get(inc.status, '#eee') }}22; color: {{ status_colors.get(inc.status, '#555') }};">{{ inc.status }}</span>
+                <span class="badge" style="background: {{ priority_colors.get(inc.priority, '#eee') }}22; color: {{ priority_colors.get(inc.priority, '#555') }};">{{ inc.priority }}</span>
+            </div>
+        </div>
+
+        <div class="card form-card">
+            <h2>Corrective Action</h2>
+            <form method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label>Repair Actions *</label>
+                    <textarea name="repair_actions" required placeholder="Describe the repair actions taken...">{{ existing.repair_actions if existing and existing.repair_actions else '' }}</textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Parts Replaced</label>
+                        <input type="text" name="parts_replaced" placeholder="e.g. Bearing, Seal, Gasket" value="{{ existing.parts_replaced if existing and existing.parts_replaced else '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Materials Used</label>
+                        <input type="text" name="materials_used" placeholder="e.g. Lubricant, Bolts" value="{{ existing.materials_used if existing and existing.materials_used else '' }}">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Labour Hours</label>
+                        <input type="number" name="labour_hours" step="0.5" placeholder="0.0" value="{{ existing.labour_hours if existing and existing.labour_hours else '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Actual Repair Cost</label>
+                        <input type="number" name="actual_cost" step="0.01" placeholder="0.00" value="{{ existing.actual_cost if existing and existing.actual_cost else '' }}">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Completion Time</label>
+                    <input type="datetime-local" name="completion_time" value="{{ existing.completion_time if existing and existing.completion_time else '' }}">
+                </div>
+                <div class="form-group">
+                    <label>Comments</label>
+                    <textarea name="comments" placeholder="Any additional notes...">{{ existing.comments if existing and existing.comments else '' }}</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Photo Upload</label>
+                    <input type="file" name="photos" multiple accept="image/*">
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Submit Corrective Action</button>
+                    <a href="{{ url_for('incidents.incident_detail', incident_id=inc.id) }}" class="btn btn-secondary">Back to Incident</a>
+                </div>
+            </form>
+        </div>
+
+        {% if media %}
+        <div class="card">
+            <h2>Uploaded Files</h2>
+            <ul class="media-list">
+                {% for file in media %}
+                <li><i class="fas fa-image"></i> {{ file.file_path.split('/')[-1] }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function toggleSubmenu(el) {
+    var submenu = el.nextElementSibling;
+    submenu.classList.toggle('open');
+    var arrow = el.querySelector('.arrow');
+    if (submenu.classList.contains('open')) {
+        arrow.innerHTML = '&#9652;';
+    } else {
+        arrow.innerHTML = '&#9662;';
+    }
+}
+document.querySelectorAll('.submenu-toggle').forEach(function(toggle) {
+    if (toggle.textContent.trim().includes('Incident Management')) {
+        var submenu = toggle.nextElementSibling;
+        if (submenu) { submenu.classList.add('open'); var arrow = toggle.querySelector('.arrow'); if (arrow) arrow.innerHTML = '&#9652;'; }
+    }
+});
+</script>
+</body>
+</html>

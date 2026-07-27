@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Roles & Permissions — EAM</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Poppins', sans-serif; background: #f5f6fa; color: #333; }
+        .navbar { background: #1a1a2e; color: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; height: 56px; }
+        .navbar h2 { font-size: 18px; }
+        .nav-right { display: flex; gap: 16px; align-items: center; font-size: 14px; color: #aaa; }
+        .nav-right a { color: #aaa; text-decoration: none; }
+        .nav-right a:hover { color: white; }
+        
+        /* Sidebar Layout styling */
+        .main-layout { display: flex; min-height: calc(100vh - 56px); }
+        .sidebar { width: 240px; background: #1a1a2e; color: white; display: flex; flex-direction: column; flex-shrink: 0; border-top: 1px solid #2e2e4f; }
+        .sidebar-menu { list-style: none; padding: 20px 0; margin: 0; }
+        .menu-section { padding: 12px 24px 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; }
+        .menu-item { display: block; padding: 10px 24px; color: #d1d5db; text-decoration: none; font-size: 14px; transition: all 0.2s ease; cursor: pointer; }
+        .menu-item:hover, .menu-item.active { background: rgba(255,255,255,0.05); color: white; }
+        .menu-has-submenu { position: relative; }
+        .submenu-toggle { display: flex; justify-content: space-between; align-items: center; padding: 10px 24px; color: #d1d5db; font-size: 14px; cursor: pointer; transition: all 0.2s ease; }
+        .submenu-toggle:hover { background: rgba(255,255,255,0.05); color: white; }
+        .submenu { list-style: none; padding-left: 16px; display: none; }
+        .submenu.open { display: block; }
+        .submenu .menu-item { padding: 8px 24px; font-size: 13px; }
+        .arrow { font-size: 10px; transition: transform 0.2s; }
+        .content-area { flex-grow: 1; padding: 32px; background: #f5f6fa; overflow-y: auto; }
+
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .page-header h1 { font-size: 24px; }
+        .page-subtitle { color: #888; font-size: 14px; margin-bottom: 32px; }
+
+        .roles-container { display: flex; gap: 24px; }
+        .roles-list-card { width: 280px; background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); flex-shrink: 0; }
+        .roles-list-card h3 { font-size: 14px; text-transform: uppercase; color: #888; margin-bottom: 16px; letter-spacing: 0.5px; }
+        
+        .role-btn { display: block; width: 100%; text-align: left; padding: 12px 16px; margin-bottom: 8px; border: 1px solid #eee; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; background: white; transition: 0.2s; }
+        .role-btn:hover { background: #f9fafb; }
+        .role-btn.active { background: #5c6bc0; color: white; border-color: #5c6bc0; }
+        
+        .permissions-card { flex-grow: 1; background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .permissions-card h2 { font-size: 18px; margin-bottom: 8px; color: #1a1a2e; }
+        .role-description { font-size: 13px; color: #888; margin-bottom: 24px; }
+
+        .permissions-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 24px; }
+        .permission-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px; border: 1px solid #f0f0f0; border-radius: 8px; }
+        .permission-item input { margin-top: 3px; cursor: pointer; }
+        .permission-details { display: flex; flex-direction: column; gap: 2px; }
+        .permission-name { font-size: 14px; font-weight: 600; color: #333; }
+        .permission-code { font-size: 11px; font-family: monospace; color: #888; }
+        .permission-desc { font-size: 12px; color: #666; margin-top: 4px; }
+
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; text-decoration: none; display: inline-block; font-family: inherit; transition: 0.2s; }
+        .btn-primary { background: #5c6bc0; color: white; }
+        .btn-primary:hover { background: #3f51b5; }
+        
+        .alert { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
+        .alert-success { background: #e8f5e9; color: #2e7d32; }
+        .alert-error { background: #ffebee; color: #c62828; }
+        
+        .badge-system { background: #eaeaea; color: #666; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; margin-left: 6px; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>Enterprise Asset Management</h2>
+    <div class="nav-right">
+        <a href="/profile">{{ username }}</a>
+        <a href="/logout">Logout</a>
+    </div>
+</div>
+
+<div class="main-layout">
+    <!-- Left Navigation Sidebar -->
+    <div class="sidebar">
+        <ul class="sidebar-menu">
+            <li><a href="/dashboard" class="menu-item">Dashboard</a></li>
+            <li><a href="/profile" class="menu-item">My Profile</a></li>
+            
+            {% if is_super_admin or 'users.view' in user_permissions or 'roles.view' in user_permissions %}
+            <li class="menu-section">Admin</li>
+            <li class="menu-has-submenu">
+                <div class="submenu-toggle" onclick="toggleSubmenu(this)">
+                    <span>Users & Roles</span>
+                    <span class="arrow">&#9652;</span>
+                </div>
+                <ul class="submenu open">
+                    {% if is_super_admin or 'users.view' in user_permissions %}
+                    <li><a href="/admin/users" class="menu-item">Users</a></li>
+                    {% endif %}
+                    {% if is_super_admin or 'roles.view' in user_permissions %}
+                    <li><a href="/admin/roles" class="menu-item active">Roles</a></li>
+                    {% endif %}
+                </ul>
+            </li>
+            {% endif %}
+            <li class="menu-section">Service Desk</li>
+            {% include 'partials/navbar.html' %}
+            <li class="menu-section">Incident Management</li>
+            {% include 'partials/incidents_navbar.html' %}
+            {% if is_super_admin or 'assets.view' in user_permissions %}
+            <li><a href="/admin/reports" class="menu-item">Reports</a></li>
+            {% endif %}
+            {% if is_super_admin %}
+            <li><a href="/admin/ldap" class="menu-item">LDAP Config</a></li>
+            <li><a href="/admin/email" class="menu-item">Email Config</a></li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <!-- Content Area -->
+    <div class="content-area">
+        <div class="page-header">
+            <h1>Role & Permission Configurations</h1>
+        </div>
+        <p class="page-subtitle">Configure authorization capabilities mapped to each system role category.</p>
+
+        <div class="roles-container">
+            <!-- Roles Selector Sidebar -->
+            <div class="roles-list-card">
+                <h3>Roles</h3>
+                {% for role in roles %}
+                    <button class="role-btn {% if loop.first %}active{% endif %}" 
+                            data-role-id="{{ role.id }}" 
+                            data-role-name="{{ role.name }}"
+                            data-is-system="{{ role.is_system_role }}"
+                            onclick="selectRole(this)">
+                        {{ role.display_name }}
+                        {% if role.is_system_role %}
+                            <span class="badge-system">Protected</span>
+                        {% endif %}
+                    </button>
+                {% endfor %}
+            </div>
+
+            <!-- Permissions Editor Panel -->
+            <div class="permissions-card">
+                <div class="alert alert-success" id="alertSuccess">Permissions saved successfully.</div>
+                <div class="alert alert-error" id="alertError">Error saving permissions.</div>
+
+                <h2 id="currentRoleTitle">Role Name</h2>
+                <div class="role-description" id="currentRoleDesc">Description placeholder.</div>
+
+                <form id="permissionsForm" method="POST" action="/admin/roles/permissions">
+                    <input type="hidden" name="role_id" id="formRoleId">
+                    
+                    <div class="permissions-grid">
+                        {% for perm in permissions %}
+                            {% if perm.code not in ['tickets.view_reports', 'tickets.assign'] %}
+                            <div class="permission-item">
+                                <input type="checkbox" name="permissions[]" value="{{ perm.id }}" id="perm_{{ perm.id }}" {% if not has_perm('roles.manage_permissions') %}disabled{% endif %}>
+                                <div class="permission-details">
+                                    <label class="permission-name" for="perm_{{ perm.id }}">{{ perm.display_name }}</label>
+                                    <span class="permission-code">{{ perm.code }}</span>
+                                    <span class="permission-desc">{{ perm.description }}</span>
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+
+                    <div class="permissions-card" style="margin-bottom: 24px; padding: 20px; border: 1px solid #e0e0e0;">
+                        <h3 style="font-size: 15px; font-weight: 600; color: #1a1a2e; margin-bottom: 16px;">Service Desk Permissions</h3>
+                        {% for perm in permissions %}
+                            {% if perm.code in ['tickets.view_reports', 'tickets.assign'] %}
+                        <div class="permission-item" style="{% if not loop.first %}margin-top: 8px;{% endif %}">
+                            <input type="checkbox" name="permissions[]" value="{{ perm.id }}" id="perm_{{ perm.id }}" {% if not has_perm('roles.manage_permissions') %}disabled{% endif %}>
+                            <div class="permission-details">
+                                <label class="permission-name" for="perm_{{ perm.id }}">{{ perm.display_name }}</label>
+                                <span class="permission-code">{{ perm.code }}</span>
+                                <span class="permission-desc">{{ perm.description }}</span>
+                            </div>
+                        </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+
+                    <div id="formActions">
+                        {% if is_super_admin or 'roles.manage_permissions' in user_permissions %}
+                        <button type="submit" class="btn btn-primary" id="saveBtn">Save Permissions</button>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Role Permissions mapping from Flask
+    const mappings = {{ role_permissions_map|tojson }};
+
+    // Sidebar toggler
+    function toggleSubmenu(el) {
+        const submenu = el.nextElementSibling;
+        submenu.classList.toggle('open');
+        const arrow = el.querySelector('.arrow');
+        if (submenu.classList.contains('open')) {
+            arrow.innerHTML = '&#9652;';
+        } else {
+            arrow.innerHTML = '&#9662;';
+        }
+    }
+
+    // Role selection
+    function selectRole(button) {
+        document.querySelectorAll(".role-btn").forEach(btn => btn.classList.remove("active"));
+        button.classList.add("active");
+
+        const roleId = button.getAttribute("data-role-id");
+        const roleName = button.getAttribute("data-role-name");
+        const isSystem = button.getAttribute("data-is-system") === "1";
+
+        document.getElementById("formRoleId").value = roleId;
+        
+        let title = button.textContent.trim().replace("Protected", "");
+        document.getElementById("currentRoleTitle").textContent = title + " Permissions";
+        
+        let descText = "";
+        if (roleName === "super_admin") {
+            descText = "This is a protected system role with unrestricted access. All permission flags are enabled by default and cannot be modified.";
+        } else if (roleName === "admin") {
+            descText = "Administrative role capable of employee approvals, assets creation, database configurations, and overall management.";
+        } else if (roleName === "department_head") {
+            descText = "Departmental manager role. Scope is restricted to assets and asset types belonging to their assigned department.";
+        } else if (roleName === "technician") {
+            descText = "Device technician role. Primarily responsible for device inspections, tasks, and future ticketing actions.";
+        } else if (roleName === "manager") {
+            descText = "Operational manager role. Authorizes tickets, schedules tasks, and coordinates technicians.";
+        }
+        document.getElementById("currentRoleDesc").textContent = descText;
+
+        // Populate checkboxes
+        const activePerms = mappings[roleId] || [];
+        document.querySelectorAll(".permission-item input[type='checkbox']").forEach(checkbox => {
+            const val = parseInt(checkbox.value);
+            checkbox.checked = activePerms.includes(val) || roleName === "super_admin";
+            checkbox.disabled = roleName === "super_admin";
+        });
+
+        // Hide save actions for super_admin
+        if (roleName === "super_admin") {
+            document.getElementById("formActions").style.display = "none";
+        } else {
+            document.getElementById("formActions").style.display = "block";
+        }
+
+        // Hide alerts
+        document.getElementById("alertSuccess").style.display = "none";
+        document.getElementById("alertError").style.display = "none";
+    }
+
+    // Initialize with first role
+    document.addEventListener("DOMContentLoaded", function() {
+        const firstRoleBtn = document.querySelector(".role-btn");
+        if (firstRoleBtn) {
+            selectRole(firstRoleBtn);
+        }
+    });
+
+    // Form submission
+    document.getElementById("permissionsForm").addEventListener("submit", function(e) {
+        e.preventDefault();
+        const saveBtn = document.getElementById("saveBtn");
+        const alertSuccess = document.getElementById("alertSuccess");
+        const alertError = document.getElementById("alertError");
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = "Saving...";
+        alertSuccess.style.display = "none";
+        alertError.style.display = "none";
+
+        const formData = new FormData(this);
+        const roleId = document.getElementById("formRoleId").value;
+
+        fetch(this.action, {
+            method: "POST",
+            body: formData
+        })
+        .then(res => res.json().then(data => ({ status: res.status, body: data })))
+        .then(res => {
+            if (res.status === 200) {
+                // Update local mapping array
+                const checked = [];
+                document.querySelectorAll(".permission-item input[type='checkbox']:checked").forEach(cb => {
+                    checked.push(parseInt(cb.value));
+                });
+                mappings[roleId] = checked;
+
+                alertSuccess.style.display = "block";
+            } else {
+                alertError.textContent = res.body.error || "An error occurred.";
+                alertError.style.display = "block";
+            }
+            saveBtn.disabled = false;
+            saveBtn.textContent = "Save Permissions";
+        })
+        .catch(err => {
+            alertError.textContent = "A connection error occurred.";
+            alertError.style.display = "block";
+            saveBtn.disabled = false;
+            saveBtn.textContent = "Save Permissions";
+        });
+    });
+</script>
+</body>
+</html>

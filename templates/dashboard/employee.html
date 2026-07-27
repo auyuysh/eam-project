@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to PDMH Service Desk</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Poppins', sans-serif; background: #f5f6fa; color: #333; min-height: 100vh; display: flex; flex-direction: column; }
+
+        .top-nav {
+            background: #0b1d3a;
+            color: white;
+            padding: 0 32px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .top-nav-title {
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+        .top-nav-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .top-nav-user {
+            font-size: 14px;
+            color: #b0bec5;
+            font-weight: 400;
+        }
+        .top-nav-user strong {
+            color: white;
+            font-weight: 500;
+        }
+        .top-nav-logout {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s;
+            font-family: 'Poppins', sans-serif;
+        }
+        .top-nav-logout:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .portal-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 48px 24px;
+        }
+
+        .portal-welcome {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .portal-welcome h1 {
+            font-size: 28px;
+            font-weight: 600;
+            color: #0b1d3a;
+            margin-bottom: 8px;
+        }
+        .portal-welcome p {
+            font-size: 15px;
+            color: #888;
+        }
+
+        .portal-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            max-width: 780px;
+            width: 100%;
+        }
+
+        .portal-card {
+            background: white;
+            border: none;
+            border-radius: 12px;
+            padding: 32px 28px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+        .portal-card:hover {
+            box-shadow: 0 6px 24px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .portal-card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            background: #fff3ec;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: #FF6B35;
+        }
+
+        .portal-card-title {
+            font-size: 17px;
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+
+        .portal-card-subtitle {
+            font-size: 13px;
+            color: #888;
+            line-height: 1.5;
+            flex: 1;
+        }
+
+        .portal-card-btn {
+            display: block;
+            width: 100%;
+            text-align: center;
+            padding: 12px 20px;
+            background: #0b1d3a;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-family: 'Poppins', sans-serif;
+            margin-top: 8px;
+        }
+        .portal-card-btn:hover {
+            background: #132c52;
+        }
+
+        .portal-footer {
+            text-align: center;
+            padding: 24px;
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        @media (max-width: 640px) {
+            .portal-grid {
+                grid-template-columns: 1fr;
+            }
+            .top-nav-title {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="top-nav">
+    <div class="top-nav-title">Welcome to PDMH Service Desk</div>
+    <div class="top-nav-right">
+        <span class="top-nav-user"><strong>{{ user.first_name }} {{ user.last_name }}</strong></span>
+        <a href="/logout" class="top-nav-logout">Logout</a>
+    </div>
+</nav>
+
+<div class="portal-body">
+    <div class="portal-welcome">
+        <h1>How can we help you today?</h1>
+        <p>Choose an option below to get started.</p>
+    </div>
+
+    <div class="portal-grid">
+        <!-- Raise Ticket -->
+        <div class="portal-card">
+            <div class="portal-card-icon">
+                <i class="bi bi-ticket-perforated-fill"></i>
+            </div>
+            <div class="portal-card-title">Raise Ticket</div>
+            <div class="portal-card-subtitle">Report a device issue, software problem or request.</div>
+            <a href="/tickets/new" class="portal-card-btn">Raise Ticket</a>
+        </div>
+
+        <!-- Raise Incident -->
+        <div class="portal-card">
+            <div class="portal-card-icon">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            </div>
+            <div class="portal-card-title">Raise Incident</div>
+            <div class="portal-card-subtitle">Report facility issues like water leakage, AC failure, electrical problems, etc.</div>
+            <a href="/incidents/create" class="portal-card-btn">Raise Incident</a>
+        </div>
+
+        <!-- View Ticket Status -->
+        <div class="portal-card">
+            <div class="portal-card-icon">
+                <i class="bi bi-clipboard-check-fill"></i>
+            </div>
+            <div class="portal-card-title">View Ticket Status</div>
+            <div class="portal-card-subtitle">Track the status and progress of your service desk tickets.</div>
+            <a href="/tickets/history" class="portal-card-btn">View Tickets</a>
+        </div>
+
+        <!-- View Incident Status -->
+        <div class="portal-card">
+            <div class="portal-card-icon">
+                <i class="bi bi-clipboard-data-fill"></i>
+            </div>
+            <div class="portal-card-title">View Incident Status</div>
+            <div class="portal-card-subtitle">Track the status and progress of your reported incidents.</div>
+            <a href="/incidents/history" class="portal-card-btn">View Incidents</a>
+        </div>
+    </div>
+</div>
+
+<div class="portal-footer">
+    PDMH Enterprise Asset Management System &copy; 2026
+</div>
+
+</body>
+</html>

@@ -5,12 +5,16 @@ LDAP Authentication Provider
 Handles all credential verification and user lifecycle operations
 against the local OpenLDAP directory server.
 
+LDAP is the **sole identity provider** for this application.
+PostgreSQL only stores application profiles (role, permissions, metadata).
+
 Responsibilities
 -----------------
 - Authenticate users via LDAP bind.
+- Search the LDAP directory for user existence checks.
 - Create new user entries in the LDAP directory tree.
 - Modify userPassword attributes for password changes / resets.
-- Look up user profile metadata from the local SQLite database.
+- Look up application profile metadata from the local PostgreSQL database.
 
 Out of scope
 -------------
@@ -20,6 +24,7 @@ Out of scope
 """
 
 import logging
+import os
 from typing import Optional
 
 from ldap3 import Server, Connection, ALL, SUBTREE
@@ -30,14 +35,217 @@ from auth.models import AuthResult
 logger = logging.getLogger("eam")
 
 # ---------------------------------------------------------------------------
-# LDAP Configuration
+# LDAP URL Parsing & Validation Helpers
 # ---------------------------------------------------------------------------
 
-LDAP_SERVER = "ldap://127.0.0.1:389"
-LDAP_BASE_DN = "dc=pdmh,dc=hospital,dc=local"
-LDAP_USERS_OU = "ou=users"
-LDAP_ADMIN_DN = f"cn=admin,{LDAP_BASE_DN}"
-LDAP_ADMIN_PASSWORD = "HospitalAdminPassword123"
+_DEFAULT_PORTS = {
+    "ldap": "389",
+    "ldaps": "636",
+}
+
+
+def parse_ldap_url(url: str) -> dict | None:
+    """Parse an LDAP URL into its components.
+
+    Supported formats::
+
+        ldap://host
+        ldap://host:389
+        ldaps://host
+        ldaps://host:636
+
+    Returns
+    -------
+    dict or None
+        ``{"protocol": "ldap", "host": "...", "port": "389"}`` on success,
+        ``None`` if the URL is invalid.
+    """
+    url = url.strip()
+    if "://" not in url:
+        return None
+
+    protocol, rest = url.split("://", 1)
+    protocol = protocol.lower()
+    if protocol not in _DEFAULT_PORTS:
+        return None
+
+    host_part = rest.split("/", 1)[0]
+    if not host_part:
+        return None
+
+    if ":" in host_part:
+        host, port = host_part.rsplit(":", 1)
+        if not host:
+            return None
+        try:
+            int(port)
+        except ValueError:
+            return None
+    else:
+        host = host_part
+        port = _DEFAULT_PORTS[protocol]
+
+    return {"protocol": protocol, "host": host, "port": port}
+
+
+def validate_port(url_port: str, field_port: str) -> str | None:
+    """Check for port conflicts between the URL and the separate port field.
+
+    Returns
+    -------
+    str or None
+        An error message if ports conflict, ``None`` if they are compatible.
+    """
+    if not field_port or not url_port:
+        return None
+    if url_port == field_port:
+        return None
+    return (
+        f"Port mismatch: URL uses {url_port} but port field contains {field_port}. "
+        "Please use the same port or remove one value."
+    )
+
+
+def build_connection(
+    protocol: str,
+    host: str,
+    port: str,
+    bind_dn: str = "",
+    password: str = "",
+    connect_timeout: int = 5,
+):
+    """Build and return a bound (or unbound) ldap3 Connection.
+
+    Parameters
+    ----------
+    protocol, host, port : str
+        Connection target parsed from the URL.
+    bind_dn : str
+        Distinguished name for authenticated bind.  Empty for anonymous.
+    password : str
+        Password for authenticated bind.
+    connect_timeout : int
+        Seconds before the connection attempt times out.
+
+    Returns
+    -------
+    ldap3.Connection
+        A connection that has been auto-bound (anonymous or authenticated).
+    """
+    server_uri = f"{protocol}://{host}:{port}"
+    server = Server(server_uri, connect_timeout=connect_timeout)
+    if bind_dn and password:
+        return Connection(server, user=bind_dn, password=password, auto_bind=True)
+    return Connection(server, auto_bind=True)
+
+
+# ---------------------------------------------------------------------------
+# LDAP Configuration (loaded from ldap_config table at runtime)
+# ---------------------------------------------------------------------------
+
+_LDAP_HOST = os.getenv("LDAP_SERVER", "ldap://127.0.0.1")
+_LDAP_PORT = os.getenv("LDAP_PORT", "389")
+_DEFAULTS = {
+    "ldap_server": f"{_LDAP_HOST}:{_LDAP_PORT}" if ":" not in _LDAP_HOST.split("//")[-1] else _LDAP_HOST,
+    "search_base_dn": os.getenv("LDAP_BASE_DN", "dc=pdmh,dc=hospital,dc=local"),
+    "admin_bind_dn": os.getenv("LDAP_ADMIN_DN", "cn=admin,dc=pdmh,dc=hospital,dc=local"),
+    "admin_bind_pw": os.getenv("LDAP_ADMIN_PASSWORD", ""),
+    "users_ou": "ou=users",
+    "attr_mail": "mail",
+    "attr_uid": "uid",
+    "attr_given_name": "givenName",
+    "attr_sn": "sn",
+}
+
+
+def _get_ldap_config() -> dict:
+    """Return LDAP config dict from the ``ldap_config`` table (single row).
+
+    Falls back to hardcoded defaults when no configuration has been saved
+    yet or when the table is missing.
+    """
+    try:
+        conn = get_db()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM ldap_config WHERE id = 1")
+            row = cursor.fetchone()
+        finally:
+            conn.close()
+    except Exception:
+        row = None
+
+    if row:
+        return {
+            "ldap_server":     row['ldap_server'] or _DEFAULTS["ldap_server"],
+            "search_base_dn":  row['search_base_dn'] or _DEFAULTS["search_base_dn"],
+            "admin_bind_dn":   row['admin_bind_dn'] or _DEFAULTS["admin_bind_dn"],
+            "admin_bind_pw":   row['admin_bind_pw'] or _DEFAULTS["admin_bind_pw"],
+            "users_ou":        _DEFAULTS["users_ou"],
+            "attr_mail":       row['attr_mail'] or _DEFAULTS["attr_mail"],
+            "attr_uid":        row['attr_uid'] or _DEFAULTS["attr_uid"],
+            "attr_given_name": row['attr_given_name'] or _DEFAULTS["attr_given_name"],
+            "attr_sn":         row['attr_sn'] or _DEFAULTS["attr_sn"],
+        }
+    return dict(_DEFAULTS)
+
+
+# ---------------------------------------------------------------------------
+# LDAP Directory Search
+# ---------------------------------------------------------------------------
+
+def search_ldap_user_by_email(email: str) -> Optional[dict]:
+    """
+    Search the LDAP directory for a user with the given email address.
+
+    This is used for:
+    - Login: Step 1 of authentication (find the user's DN before bind)
+    - Registration: Check if an email already exists in LDAP
+
+    Returns
+    -------
+    dict or None
+        ``{"uid": "...", "email": "...", "first_name": "...", "last_name": "..."}``
+        if found, ``None`` otherwise.
+    """
+    cfg = _get_ldap_config()
+    try:
+        conn = _admin_bind()
+        search_filter = f"({cfg['attr_mail']}={email})"
+        search_base = f"{cfg['users_ou']},{cfg['search_base_dn']}"
+        conn.search(
+            search_base=search_base,
+            search_filter=search_filter,
+            search_scope=SUBTREE,
+            attributes=[
+                cfg["attr_uid"],
+                cfg["attr_given_name"],
+                cfg["attr_sn"],
+                cfg["attr_mail"],
+            ],
+        )
+        if not conn.entries:
+            conn.unbind()
+            return None
+
+        entry = conn.entries[0]
+        uid_attr = cfg["attr_uid"]
+        gn_attr  = cfg["attr_given_name"]
+        sn_attr  = cfg["attr_sn"]
+        uid = entry[uid_attr].value if hasattr(entry, uid_attr) and entry[uid_attr] else email.split("@")[0]
+        first_name = entry[gn_attr].value if hasattr(entry, gn_attr) and entry[gn_attr] else ""
+        last_name  = entry[sn_attr].value if hasattr(entry, sn_attr) and entry[sn_attr] else ""
+
+        conn.unbind()
+        return {
+            "uid": uid,
+            "email": email,
+            "first_name": first_name,
+            "last_name": last_name,
+        }
+    except Exception as e:
+        logger.error("[LDAP Search Failure] email=%s: %s", email, e)
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -47,6 +255,9 @@ LDAP_ADMIN_PASSWORD = "HospitalAdminPassword123"
 def verify_user_credentials_with_ldap(user_email: str, password: str) -> bool:
     """
     Attempt an LDAP bind with the user's own credentials.
+
+    Searches LDAP by email to discover the user's DN, then binds
+    with that DN and the provided password.
 
     Parameters
     ----------
@@ -61,10 +272,16 @@ def verify_user_credentials_with_ldap(user_email: str, password: str) -> bool:
         ``True`` if the bind succeeds (credentials are correct).
         ``False`` on any failure.
     """
-    username = user_email.split("@")[0]
+    cfg = _get_ldap_config()
 
-    server = Server(LDAP_SERVER, get_info=ALL)
-    user_dn = f"uid={username},{LDAP_USERS_OU},{LDAP_BASE_DN}"
+    ldap_user = search_ldap_user_by_email(user_email)
+    if ldap_user is None:
+        logger.warning("[LDAP Auth Failure] user not found in directory: %s", user_email)
+        return False
+
+    uid = ldap_user["uid"]
+    server = Server(cfg["ldap_server"], get_info=ALL)
+    user_dn = f"uid={uid},{cfg['users_ou']},{cfg['search_base_dn']}"
 
     try:
         conn = Connection(
@@ -88,15 +305,15 @@ def verify_user_credentials_with_ldap(user_email: str, password: str) -> bool:
 
 def get_user_profile_by_email(email: str) -> Optional[dict]:
     """
-    Fetch user profile metadata from the local SQLite database.
+    Fetch user application profile from the local PostgreSQL database.
 
-    This only retrieves non-sensitive profile columns; passwords
-    are never stored in SQLite.
+    LDAP is the identity provider; PostgreSQL only stores role, permissions,
+    and employee metadata.
 
     Returns
     -------
     dict or None
-        Profile dictionary or ``None`` if the user does not exist locally.
+        Profile dictionary or ``None`` if the user has no local profile.
     """
     conn = get_db()
     try:
@@ -104,9 +321,12 @@ def get_user_profile_by_email(email: str) -> Optional[dict]:
         cursor.execute(
             """
             SELECT id, email, first_name, last_name,
-                   company_name, company_id, role
+                   company_id, role,
+                   is_super_admin, is_approved, account_status,
+                   approved_by, approved_at, role_id, department_id,
+                   ldap_uid
             FROM users
-            WHERE email = ?
+            WHERE email = %s
             """,
             (email,),
         )
@@ -114,23 +334,68 @@ def get_user_profile_by_email(email: str) -> Optional[dict]:
         if row is None:
             return None
 
-        return {
-            "id": row[0],
-            "email": row[1],
-            "first_name": row[2],
-            "last_name": row[3],
-            "company_name": row[4],
-            "company_id": row[5],
-            "role": row[6],
-        }
+        return dict(row)
     finally:
         conn.close()
 
 
+def get_ldap_user_by_email(email: str) -> Optional[dict]:
+    """
+    Search LDAP directory for a user with the given email.
+
+    Returns
+    -------
+    dict or None
+        LDAP profile dictionary or ``None`` if not found.
+    """
+    cfg = _get_ldap_config()
+    try:
+        conn = _admin_bind()
+        search_filter = f"({cfg['attr_mail']}={email})"
+        search_base = f"{cfg['users_ou']},{cfg['search_base_dn']}"
+        conn.search(
+            search_base=search_base,
+            search_filter=search_filter,
+            search_scope=SUBTREE,
+            attributes=[cfg["attr_uid"], cfg["attr_given_name"], cfg["attr_sn"], cfg["attr_mail"]],
+        )
+        if not conn.entries:
+            conn.unbind()
+            return None
+
+        entry = conn.entries[0]
+        uid_attr = cfg["attr_uid"]
+        gn_attr  = cfg["attr_given_name"]
+        sn_attr  = cfg["attr_sn"]
+        username = entry[uid_attr].value if hasattr(entry, uid_attr) and entry[uid_attr] else email.split("@")[0]
+        first_name = entry[gn_attr].value if hasattr(entry, gn_attr) and entry[gn_attr] else ""
+        last_name  = entry[sn_attr].value if hasattr(entry, sn_attr) and entry[sn_attr] else ""
+
+        conn.unbind()
+        return {
+            "username": username,
+            "first_name": first_name,
+            "last_name": last_name,
+            "email": email
+        }
+    except Exception as e:
+        logger.error("[LDAP Search Failure] email=%s: %s", email, e)
+        return None
+
+
+
 def authenticate_ldap(email: str, password: str) -> AuthResult:
     """
-    Authenticate a user against the LDAP directory and fetch their
-    local profile metadata.
+    Authenticate a user against LDAP (the sole identity provider) and
+    fetch their application profile from PostgreSQL.
+
+    Login flow:
+        1. Search LDAP by email to discover the user.
+        2. Authenticate via LDAP bind.
+        3. On success, fetch role and permissions from PostgreSQL
+           using the user's ldap_uid.
+
+    PostgreSQL is NEVER checked for account existence or credentials.
 
     Parameters
     ----------
@@ -144,20 +409,32 @@ def authenticate_ldap(email: str, password: str) -> AuthResult:
     AuthResult
         status ``'authenticated'`` on success, ``'failed'`` otherwise.
     """
+    # Step 1 — Search LDAP for the user by email
+    ldap_user = search_ldap_user_by_email(email)
+    if ldap_user is None:
+        return AuthResult(
+            status="failed",
+            message="Invalid email or password.",
+        )
+
+    # Step 2 — Authenticate via LDAP bind
     if not verify_user_credentials_with_ldap(email, password):
         return AuthResult(
             status="failed",
             message="Invalid email or password.",
         )
 
+    # Step 3 — Fetch role and permissions from PostgreSQL using ldap_uid
+    ldap_uid = ldap_user["uid"]
     user = get_user_profile_by_email(email)
     if user is None:
         logger.warning(
-            "LDAP auth succeeded but no local profile found for %s", email
+            "LDAP auth succeeded but no local profile found for %s (ldap_uid=%s)",
+            email, ldap_uid,
         )
         return AuthResult(
             status="failed",
-            message="User account not found in local database.",
+            message="User account not found. Please contact the administrator.",
         )
 
     return AuthResult(
@@ -187,11 +464,12 @@ def _admin_bind() -> Connection:
     Exception
         If the admin bind fails.
     """
-    server = Server(LDAP_SERVER, get_info=ALL)
+    cfg = _get_ldap_config()
+    server = Server(cfg["ldap_server"], get_info=ALL)
     conn = Connection(
         server,
-        user=LDAP_ADMIN_DN,
-        password=LDAP_ADMIN_PASSWORD,
+        user=cfg["admin_bind_dn"],
+        password=cfg["admin_bind_pw"],
         check_names=True,
         raise_exceptions=True,
     )
@@ -229,41 +507,52 @@ def create_ldap_user(
     -------
     bool
         ``True`` if the user was created successfully.
+
+    Raises
+    ------
+    ldap3.core.exceptions.LDAPException
+        If the LDAP operation fails (bind error, add error, etc.).
+        The caller is expected to catch this and provide user-facing feedback.
     """
-    user_dn = f"uid={username},{LDAP_USERS_OU},{LDAP_BASE_DN}"
+    cfg = _get_ldap_config()
+    user_dn = f"uid={username},{cfg['users_ou']},{cfg['search_base_dn']}"
 
-    try:
-        conn = _admin_bind()
+    logger.info(
+        "[LDAP CREATE] Attempting to add user: dn=%s, uid=%s, cn='%s %s', mail=%s, objectClass=['top','person','organizationalPerson','inetOrgPerson']",
+        user_dn, username, first_name, last_name, email,
+    )
 
-        attributes = {
-            "uid": str(username),
-            "cn": str(f"{first_name} {last_name}"),
-            "sn": str(last_name),
-            "givenName": str(first_name),
-            "mail": str(email),
-            "userPassword": str(password),
-        }
+    conn = _admin_bind()
 
-        result = conn.add(
-            dn=user_dn,
-            object_class=["top", "person", "organizationalPerson", "inetOrgPerson"],
-            attributes=attributes,
+    attributes = {
+        cfg["attr_uid"]: str(username),
+        "cn": str(f"{first_name} {last_name}"),
+        cfg["attr_sn"]: str(last_name),
+        cfg["attr_given_name"]: str(first_name),
+        cfg["attr_mail"]: str(email),
+        "userPassword": str(password),
+    }
+
+    result = conn.add(
+        dn=user_dn,
+        object_class=["top", "person", "organizationalPerson", "inetOrgPerson"],
+        attributes=attributes,
+    )
+    conn.unbind()
+
+    if result:
+        logger.info("[LDAP CREATE] Success: user added at %s", user_dn)
+        return True
+    else:
+        ldap_result = getattr(conn, 'result', 'No result info')
+        logger.error(
+            "[LDAP CREATE] Failed for %s: server returned False, result=%s",
+            user_dn, ldap_result,
         )
-        conn.unbind()
-
-        if result:
-            logger.info("LDAP user created: %s", user_dn)
-        else:
-            logger.error(
-                "LDAP user creation returned False for %s: %s",
-                user_dn,
-                conn.result,
-            )
-        return result
-
-    except Exception as e:
-        logger.error("[LDAP Create User Failure] %s: %s", user_dn, e)
-        return False
+        raise Exception(
+            f"LDAP directory rejected the add operation for {user_dn}. "
+            f"Server result: {ldap_result}"
+        )
 
 
 def update_ldap_password(username: str, new_password: str) -> bool:
@@ -285,7 +574,8 @@ def update_ldap_password(username: str, new_password: str) -> bool:
     bool
         ``True`` if the password was updated successfully.
     """
-    user_dn = f"uid={username},{LDAP_USERS_OU},{LDAP_BASE_DN}"
+    cfg = _get_ldap_config()
+    user_dn = f"uid={username},{cfg['users_ou']},{cfg['search_base_dn']}"
 
     try:
         conn = _admin_bind()

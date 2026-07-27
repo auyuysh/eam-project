@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>LDAP Configuration — EAM</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Poppins', sans-serif; background: #f5f6fa; color: #333; }
+        .navbar { background: #1a1a2e; color: white; padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; height: 56px; }
+        .navbar h2 { font-size: 18px; }
+        .nav-right { display: flex; gap: 16px; align-items: center; font-size: 14px; color: #aaa; }
+        .nav-right a { color: #aaa; text-decoration: none; }
+        .nav-right a:hover { color: white; }
+        .main-layout { display: flex; min-height: calc(100vh - 56px); }
+        .sidebar { width: 240px; background: #1a1a2e; color: white; display: flex; flex-direction: column; flex-shrink: 0; border-top: 1px solid #2e2e4f; }
+        .sidebar-menu { list-style: none; padding: 20px 0; margin: 0; }
+        .menu-section { padding: 12px 24px 6px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; }
+        .menu-item { display: block; padding: 10px 24px; color: #d1d5db; text-decoration: none; font-size: 14px; transition: all 0.2s ease; cursor: pointer; }
+        .menu-item:hover, .menu-item.active { background: rgba(255,255,255,0.05); color: white; }
+        .menu-has-submenu { position: relative; }
+        .submenu-toggle { display: flex; justify-content: space-between; align-items: center; padding: 10px 24px; color: #d1d5db; font-size: 14px; cursor: pointer; transition: all 0.2s ease; }
+        .submenu-toggle:hover { background: rgba(255,255,255,0.05); color: white; }
+        .submenu { list-style: none; padding-left: 16px; display: none; }
+        .submenu.open { display: block; }
+        .submenu .menu-item { padding: 8px 24px; font-size: 13px; }
+        .arrow { font-size: 10px; transition: transform 0.2s; }
+        .content-area { flex-grow: 1; padding: 32px; background: #f5f6fa; overflow-y: auto; }
+        .page-header { margin-bottom: 8px; }
+        .page-header h1 { font-size: 24px; }
+        .page-subtitle { color: #888; font-size: 14px; margin-bottom: 32px; }
+
+        .config-card { background: white; border-radius: 12px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 24px; }
+        .config-card h2 { font-size: 16px; font-weight: 600; color: #1a1a2e; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid #eee; }
+        .toggle-row { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #eee; }
+        .toggle-row label { font-size: 14px; font-weight: 500; color: #333; }
+        .toggle-switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; inset: 0; background: #ccc; border-radius: 24px; cursor: pointer; transition: background 0.2s; }
+        .toggle-slider::before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: transform 0.2s; }
+        .toggle-switch input:checked + .toggle-slider { background: #5c6bc0; }
+        .toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
+        .notification-saved { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #2e7d32; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group.full-width { grid-column: 1 / -1; }
+        .form-group label { font-size: 12px; font-weight: 600; color: #555; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.3px; }
+        .form-group input { padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; font-family: inherit; transition: border-color 0.2s; }
+        .form-group input:focus { outline: none; border-color: #5c6bc0; }
+        .form-group input::placeholder { color: #bbb; }
+        .form-group code { font-size: 11px; color: #888; margin-top: 4px; }
+
+        .btn { padding: 10px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; text-decoration: none; display: inline-block; font-family: inherit; transition: all 0.2s; }
+        .btn-primary { background: #5c6bc0; color: white; }
+        .btn-primary:hover { background: #3f51b5; }
+        .btn-primary:disabled { background: #9fa8da; cursor: not-allowed; }
+        .btn-secondary { background: #eaeaea; color: #333; }
+        .btn-secondary:hover { background: #dcdcdc; }
+
+        .actions-bar { display: flex; gap: 12px; align-items: center; margin-top: 24px; padding-top: 20px; border-top: 1px solid #eee; }
+
+        .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 6px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Notification boxes */
+        .notification-box { display: none; padding: 16px 20px; border-radius: 8px; font-size: 14px; margin-top: 20px; line-height: 1.5; }
+        .notification-box.visible { display: block; }
+
+        .notification-failed { background: #ffebee; color: #c62828; border-left: 4px solid #c62828; }
+        .notification-fetching { background: #e3f2fd; color: #1565c0; border-left: 4px solid #1565c0; }
+        .notification-success { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #2e7d32; }
+        .notification-missing { background: #fff8e1; color: #f57f17; border-left: 4px solid #f57f17; }
+
+        .notification-box strong { font-weight: 600; }
+        .notification-box code { font-family: monospace; font-size: 13px; background: rgba(0,0,0,0.06); padding: 2px 6px; border-radius: 4px; }
+
+        .test-status { font-size: 13px; color: #888; margin-top: 8px; min-height: 20px; }
+        .mapping-highlight { border-color: #f57f17 !important; background: #fffde7; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>Enterprise Asset Management</h2>
+    <div class="nav-right">
+        <a href="/profile">{{ username }}</a>
+        <a href="/logout">Logout</a>
+    </div>
+</div>
+
+<div class="main-layout">
+    <div class="sidebar">
+        <ul class="sidebar-menu">
+            <li><a href="/dashboard" class="menu-item">Dashboard</a></li>
+            <li><a href="/profile" class="menu-item">My Profile</a></li>
+
+            {% if is_super_admin or 'users.view' in user_permissions or 'roles.view' in user_permissions %}
+            <li class="menu-section">Admin</li>
+            <li class="menu-has-submenu">
+                <div class="submenu-toggle" onclick="toggleSubmenu(this)">
+                    <span>Users & Roles</span>
+                    <span class="arrow">&#9662;</span>
+                </div>
+                <ul class="submenu">
+                    {% if is_super_admin or 'users.view' in user_permissions %}
+                    <li><a href="/admin/users" class="menu-item">Users</a></li>
+                    {% endif %}
+                    {% if is_super_admin or 'roles.view' in user_permissions %}
+                    <li><a href="/admin/roles" class="menu-item">Roles</a></li>
+                    {% endif %}
+                </ul>
+            </li>
+            {% endif %}
+            <li class="menu-section">Service Desk</li>
+            {% include 'partials/navbar.html' %}
+            <li class="menu-section">Incident Management</li>
+            {% include 'partials/incidents_navbar.html' %}
+            {% if is_super_admin or 'assets.view' in user_permissions %}
+            <li><a href="/admin/reports" class="menu-item">Reports</a></li>
+            {% endif %}
+            {% if is_super_admin %}
+            <li><a href="/admin/ldap" class="menu-item active">LDAP Config</a></li>
+            <li><a href="/admin/email" class="menu-item">Email Config</a></li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <div class="content-area">
+        <div class="page-header">
+            <h1>LDAP Network Configuration</h1>
+        </div>
+        <p class="page-subtitle">Configure and validate the centralized LDAP directory server connection for identity management.</p>
+
+        <div class="config-card">
+            <h2>Server Connection Parameters</h2>
+            <form id="ldapConfigForm" onsubmit="return false;">
+                <div class="toggle-row">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="is_enabled" name="is_enabled" {% if config.is_enabled %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <label for="is_enabled" style="text-transform:none; font-weight:500;">Enable LDAP Authentication</label>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="ldap_uri">LDAP Server URL</label>
+                        <input type="text" id="ldap_uri" name="ldap_uri" placeholder="ldap://localhost:389" value="{{ config.ldap_server }}" required>
+                        <code>e.g. ldap://localhost:389 or ldaps://ldap.example.com:636</code>
+                    </div>
+                    <div class="form-group">
+                        <label for="ldap_port">LDAP Port (Optional)</label>
+                        <input type="text" id="ldap_port" name="ldap_port" placeholder="389" value="{{ config.ldap_port }}">
+                        <code>Leave empty to use the port from the URL above</code>
+                    </div>
+                    <div class="form-group">
+                        <label for="search_base">Search Base DN</label>
+                        <input type="text" id="search_base" name="search_base" placeholder="ou=users,dc=pdmh,dc=hospital,dc=local" value="{{ config.search_base_dn }}" required>
+                        <code>The base DN under which user entries are located</code>
+                    </div>
+                    <div class="form-group">
+                        <label for="bind_dn">Bind DN</label>
+                        <input type="text" id="bind_dn" name="bind_dn" placeholder="cn=admin,dc=pdmh,dc=hospital,dc=local" value="{{ config.admin_bind_dn }}" required>
+                        <code>Distinguished name of the administrative service account</code>
+                    </div>
+                    <div class="form-group">
+                        <label for="bind_password">Password (Optional)</label>
+                        <input type="password" id="bind_password" name="bind_password" placeholder="{% if config.admin_bind_pw %}••••••••{% else %}Leave empty for anonymous bind{% endif %}">
+                        <code>Leave empty for anonymous bind; provide for authenticated bind</code>
+                    </div>
+                </div>
+
+                <div class="actions-bar">
+                    <button type="button" class="btn btn-primary" id="testConnectionBtn" onclick="testLDAPConnection()">
+                        Test Connection
+                    </button>
+                    <button type="button" class="btn btn-primary" id="saveConfigBtn" onclick="saveConfig()" style="background:#2e7d32;">
+                        Save Configuration
+                    </button>
+                    <span class="test-status" id="testStatus"></span>
+                </div>
+            </form>
+        </div>
+
+        <div class="config-card" id="attrMappingCard" style="display:none;">
+            <h2>Attribute Mapping</h2>
+            <p style="font-size:13px; color:#666; margin-bottom:16px;">Map LDAP directory attributes to application identity fields. Adjust if your directory uses non-standard attribute names.</p>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="attr_mail">Email Attribute</label>
+                    <input type="text" id="attr_mail" value="{{ config.attr_mail }}">
+                </div>
+                <div class="form-group">
+                    <label for="attr_uid">Username / UID Attribute</label>
+                    <input type="text" id="attr_uid" value="{{ config.attr_uid }}">
+                </div>
+                <div class="form-group">
+                    <label for="attr_given_name">First Name Attribute</label>
+                    <input type="text" id="attr_given_name" value="{{ config.attr_given_name }}">
+                </div>
+                <div class="form-group">
+                    <label for="attr_sn">Last Name Attribute</label>
+                    <input type="text" id="attr_sn" value="{{ config.attr_sn }}">
+                </div>
+            </div>
+        </div>
+
+        <!-- State A: Network / Authentication Failure -->
+        <div class="notification-box notification-failed" id="stateFailed">
+            <strong>Connection Failed:</strong> <span id="failedError"></span>
+        </div>
+
+        <!-- State B: Phase 1 Pass (Fetching) -->
+        <div class="notification-box notification-fetching" id="stateFetching">
+            <strong>Connection Successful</strong> with <code id="fetchingUri"></code>. Status: Fetching operational directory attributes...
+        </div>
+
+        <!-- State C: Complete Dynamic Sync Success -->
+        <div class="notification-box notification-success" id="stateSuccess">
+            <strong>Connection Successful and Attributes Fetched!</strong> All configurations aligned.
+        </div>
+
+        <!-- State D: Structural Attribute Deficit (Fallback Form Input) -->
+        <div class="notification-box notification-missing" id="stateMissing">
+            <strong>Connection Successful, but Required Identity Mappings are Missing.</strong>
+            <p style="font-size:13px; margin-top:8px;">The Attribute Mapping panel below has been revealed. Missing attribute fields are blank — enter the correct LDAP attribute names for your directory.</p>
+        </div>
+
+        <!-- State E: Save Success -->
+        <div class="notification-box notification-saved" id="stateSaved" style="background:#e8f5e9; color:#2e7d32; border-left:4px solid #2e7d32;">
+            <strong>Configuration Saved.</strong> LDAP settings have been persisted to the database.
+        </div>
+
+        <!-- State F: Port Mismatch Warning -->
+        <div class="notification-box notification-failed" id="statePortMismatch">
+            <strong>Port Conflict:</strong> <span id="portMismatchError"></span>
+        </div>
+
+    </div>
+</div>
+
+<script>
+var ATTR_DEFAULTS = {
+    'mail': 'mail',
+    'uid': 'uid',
+    'givenName': 'givenName',
+    'sn': 'sn'
+};
+var ATTR_FIELDS = ['attr_mail', 'attr_uid', 'attr_given_name', 'attr_sn'];
+var ATTR_KEYS   = ['mail', 'uid', 'givenName', 'sn'];
+
+function toggleSubmenu(el) {
+    var submenu = el.nextElementSibling;
+    submenu.classList.toggle('open');
+    var arrow = el.querySelector('.arrow');
+    if (submenu.classList.contains('open')) {
+        arrow.innerHTML = '&#9652;';
+    } else {
+        arrow.innerHTML = '&#9662;';
+    }
+}
+
+function hideAllStates() {
+    document.getElementById('stateFailed').classList.remove('visible');
+    document.getElementById('stateFetching').classList.remove('visible');
+    document.getElementById('stateSuccess').classList.remove('visible');
+    document.getElementById('stateMissing').classList.remove('visible');
+    document.getElementById('stateSaved').classList.remove('visible');
+    document.getElementById('statePortMismatch').classList.remove('visible');
+    document.getElementById('attrMappingCard').style.display = 'none';
+}
+
+function fillMappingDefaults() {
+    for (var i = 0; i < ATTR_KEYS.length; i++) {
+        var el = document.getElementById(ATTR_FIELDS[i]);
+        if (el) { el.value = ATTR_DEFAULTS[ATTR_KEYS[i]]; el.classList.remove('mapping-highlight'); }
+    }
+}
+
+function clearMissingFields(missingKeys) {
+    var keyToField = { 'mail': 'attr_mail', 'uid': 'attr_uid', 'givenName': 'attr_given_name', 'sn': 'attr_sn' };
+    for (var i = 0; i < missingKeys.length; i++) {
+        var el = document.getElementById(keyToField[missingKeys[i]]);
+        if (el) { el.value = ''; el.classList.add('mapping-highlight'); }
+    }
+}
+
+function testLDAPConnection() {
+    var btn = document.getElementById('testConnectionBtn');
+    var statusEl = document.getElementById('testStatus');
+
+    var uri = document.getElementById('ldap_uri').value.trim();
+    var port = document.getElementById('ldap_port').value.trim();
+    var bindDn = document.getElementById('bind_dn').value.trim();
+    var password = document.getElementById('bind_password').value;
+    var searchBase = document.getElementById('search_base').value.trim();
+
+    if (!uri || !bindDn || !searchBase) {
+        alert('LDAP Server URL, Bind DN, and Search Base DN are required.');
+        return;
+    }
+
+    hideAllStates();
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Testing...';
+    statusEl.textContent = 'Initiating connection probe...';
+
+    document.getElementById('fetchingUri').textContent = uri;
+    document.getElementById('stateFetching').classList.add('visible');
+
+    var formData = new FormData();
+    formData.append('ldap_uri', uri);
+    formData.append('ldap_port', port);
+    formData.append('bind_dn', bindDn);
+    formData.append('bind_password', password);
+    formData.append('search_base', searchBase);
+
+    fetch('/admin/ldap/test', {
+        method: 'POST',
+        body: formData
+    })
+    .then(function(res) {
+        return res.json().then(function(data) {
+            return { ok: res.ok, status: res.status, data: data };
+        });
+    })
+    .then(function(result) {
+        btn.disabled = false;
+        btn.innerHTML = 'Test Connection';
+        statusEl.textContent = '';
+        document.getElementById('stateFetching').classList.remove('visible');
+
+        var d = result.data;
+
+        if (d.status === 'success') {
+            var modeText = d.bind_mode ? ' (' + d.bind_mode + ' bind)' : '';
+            document.getElementById('stateSuccess').innerHTML = '<strong>Connection Successful and Attributes Fetched!</strong> All configurations aligned.' + modeText;
+            document.getElementById('stateSuccess').classList.add('visible');
+            fillMappingDefaults();
+            document.getElementById('attrMappingCard').style.display = '';
+        } else if (d.status === 'missing_attributes') {
+            document.getElementById('stateMissing').classList.add('visible');
+            fillMappingDefaults();
+            clearMissingFields(d.missing || []);
+            document.getElementById('attrMappingCard').style.display = '';
+        } else if (d.status === 'partial_success') {
+            document.getElementById('failedError').textContent = d.message || 'No records found.';
+            document.getElementById('stateFailed').classList.add('visible');
+        } else if (d.status === 'port_mismatch') {
+            document.getElementById('portMismatchError').textContent = d.error || 'Port conflict detected.';
+            document.getElementById('statePortMismatch').classList.add('visible');
+        } else if (d.status === 'failed') {
+            document.getElementById('failedError').textContent = d.error || 'Unknown error occurred.';
+            document.getElementById('stateFailed').classList.add('visible');
+        } else {
+            document.getElementById('failedError').textContent = d.message || 'Unexpected response from server.';
+            document.getElementById('stateFailed').classList.add('visible');
+        }
+    })
+    .catch(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = 'Test Connection';
+        statusEl.textContent = '';
+        document.getElementById('stateFetching').classList.remove('visible');
+        document.getElementById('failedError').textContent = 'Network error: ' + (err.message || 'Could not reach the server.');
+        document.getElementById('stateFailed').classList.add('visible');
+    });
+}
+
+function saveConfig() {
+    var btn = document.getElementById('saveConfigBtn');
+    var payload = {
+        ldap_server:     document.getElementById('ldap_uri').value.trim(),
+        ldap_port:       document.getElementById('ldap_port').value.trim(),
+        search_base_dn:  document.getElementById('search_base').value.trim(),
+        admin_bind_dn:   document.getElementById('bind_dn').value.trim(),
+        admin_bind_pw:   document.getElementById('bind_password').value,
+        attr_mail:       document.getElementById('attr_mail').value.trim(),
+        attr_uid:        document.getElementById('attr_uid').value.trim(),
+        attr_given_name: document.getElementById('attr_given_name').value.trim(),
+        attr_sn:         document.getElementById('attr_sn').value.trim(),
+        is_enabled:      document.getElementById('is_enabled').checked
+    };
+
+    if (!payload.ldap_server || !payload.search_base_dn || !payload.admin_bind_dn) {
+        alert('Server URI, Search Base DN, and Admin Bind DN are required.');
+        return;
+    }
+
+    hideAllStates();
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Saving...';
+
+    fetch('/admin/ldap/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(function(res) { return res.json().then(function(d) { return { ok: res.ok, data: d }; }); })
+    .then(function(result) {
+        btn.disabled = false;
+        btn.innerHTML = 'Save Configuration';
+        if (result.ok) {
+            document.getElementById('stateSaved').classList.add('visible');
+        } else {
+            document.getElementById('failedError').textContent = result.data.error || 'Failed to save.';
+            document.getElementById('stateFailed').classList.add('visible');
+        }
+    })
+    .catch(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = 'Save Configuration';
+        document.getElementById('failedError').textContent = 'Network error: ' + err.message;
+        document.getElementById('stateFailed').classList.add('visible');
+    });
+}
+</script>
+
+</body>
+</html>
